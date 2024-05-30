@@ -13,10 +13,8 @@ pipeline {
 
         stage('Docker Build and Push') {
             steps {
-                container('kaniko') {
-                    sh '''
-                    /kaniko/executor --destination=992256429851.dkr.ecr.us-east-2.amazonaws.com/demo:latest --verbosity=info
-                    '''
+                container('jnlp') {
+                    sh 'docker version'
                 }
             }
         }
