@@ -14,6 +14,7 @@ pipeline {
         stage('Docker Build and Push') {
             steps {
                 container('jnlp') {
+                    sh 'ls /var/run'
                     sh 'docker version'
                 }
             }
