@@ -1,6 +1,0 @@
-image:
-  repository: 992256429851.dkr.ecr.us-east-2.amazonaws.com/demo
-  imagePullPolicy: IfNotPresent
-  tag: "latest"
-  containerPort: 3000
-  healthCheckPath: /
