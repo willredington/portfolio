@@ -25,7 +25,11 @@ const socialCount = SOCIALS.filter(social => social.active).length;
     <section id="hero">
       <h1>Will Redington</h1>
       <p>
-        I am a full-stack software developer with over six years of proven experience in fast-paced environments. I have developed high-quality software in various industries, including aerospace, military, government, non-profit, and health care. My broad experience includes traditional enterprise-based software engineering approaches to more specialized and modern stacks such as serverless and infrastructure as code. I am proficient wearing multiple hats as a software developer, system admin, and architect. My strengths include the ability to quickly learn emerging technologies, write clean and efficient code, and teach others.
+        Experienced Full-stack Software Engineer with 8+ years of expertise
+        across aerospace, military, government, healthcare, and automotive
+        industries. Skilled in team leadership, infrastructure design, and
+        delivering high-quality software solutions. Passionate about using
+        cutting-edge technologies to solve complex problems.
       </p>
       {
         // only display if at least one social link is enabled
@@ -94,7 +98,7 @@ const socialCount = SOCIALS.filter(social => social.active).length;
 <style>
   /* ===== Hero Section ===== */
   #hero {
-    @apply pt-8 pb-6;
+    @apply pb-6 pt-8;
   }
   #hero h1 {
     @apply my-4 inline-block text-3xl font-bold sm:my-8 sm:text-5xl;
@@ -112,13 +116,13 @@ const socialCount = SOCIALS.filter(social => social.active).length;
     @apply mt-4 flex flex-col sm:flex-row sm:items-center;
   }
   .social-links {
-    @apply mr-2 mb-1 whitespace-nowrap sm:mb-0;
+    @apply mb-1 mr-2 whitespace-nowrap sm:mb-0;
   }
 
   /* ===== Featured & Recent Posts Sections ===== */
   #featured,
   #recent-posts {
-    @apply pt-12 pb-6;
+    @apply pb-6 pt-12;
   }
   #featured h2,
   #recent-posts h2 {

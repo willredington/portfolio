@@ -1,20 +1,19 @@
 ---
 author: Will Redington
 pubDatetime: 2023-06-02T15:22:00Z
-title: AI-generated video using ChatGPT - Part 1
-postSlug: ai-generated-video-chatgpt-part-1
+title: AI-generated video using ChatGPT
+postSlug: ai-generated-video-chatgpt
 featured: true
 draft: false
 tags:
   - ai
   - chatgpt
   - python
-  - aws 
+  - aws
   - typescript
   - node
 ogImage: ""
-description:
-  Part 1 of how to create an AI-generated video using ChatGPT
+description: How to create an AI-generated video using ChatGPT
 ---
 
 We've all seen AI-generated images, what about video?
@@ -23,19 +22,18 @@ We've all seen AI-generated images, what about video?
 
 ## Process
 
-
-1. ChatGPT creates the video transcript and sends it to us in JSON 
+1. ChatGPT creates the video transcript and sends it to us in JSON
 2. For each section of the transcript, we want to translate the text into audio and get a GIF for the background
 3. Have the user manually sign off on what was generated
-4. Compile everything together and create a MP4 video file 
+4. Compile everything together and create a MP4 video file
 
 ## Technologies
 
-* Chat GPT - generates the transcript based on a prompt 
-* Microsoft TTS - text to speech
-* GIPHY - searches for a GIF 
-* MoviePy - compiles everything together into an MP4
-* AWS CDK - infrastructure and whatnot
+- Chat GPT - generates the transcript based on a prompt
+- Microsoft TTS - text to speech
+- GIPHY - searches for a GIF
+- MoviePy - compiles everything together into an MP4
+- AWS CDK - infrastructure and whatnot
 
 ## Building Out the Basics
 
@@ -87,15 +85,11 @@ When we supply our prompt to ChatGPT, we get a response that looks something lik
 
 ## Data Model
 
-We have basically two basic models derived from the data we get from ChatGPT: Project and Project Section. We'll want to validate things as well since we're in a lambda environment, so we'll be using zod to model and validate in one go. Everything will be based on the data we get from Chat GPT, let's look at an example based on a prompt: 
+We have basically two basic models derived from the data we get from ChatGPT: Project and Project Section. We'll want to validate things as well since we're in a lambda environment, so we'll be using zod to model and validate in one go. Everything will be based on the data we get from Chat GPT, let's look at an example based on a prompt:
 
-
-
-
-### Project 
+### Project
 
 Our project has a status and some basic fields, but most importantly the `topic` which is the supplied value from the user
-
 
 ```typescript
 import { z } from "zod";
@@ -121,8 +115,7 @@ export type Project = z.infer<typeof Project>;
 
 ### Project Section
 
-The "sections" are essentially the different items in the transcript array provided by ChatGPT. Ultimately we'll store the files in s3.  We need a bucket for both GIFs as well as the audio files from the TTS service.
-
+The "sections" are essentially the different items in the transcript array provided by ChatGPT. Ultimately we'll store the files in s3. We need a bucket for both GIFs as well as the audio files from the TTS service.
 
 ```typescript
 import { z } from "zod";
@@ -143,10 +136,10 @@ export type ProjectSectionKey = {
   id: string;
   projectId: string;
 };
-
 ```
 
 ## Dynamo
+
 We'll be storing our two models in DynamoDB. We know in advance the kind of operations we want to perform:
 
 1. Get all the projects for a user
@@ -232,6 +225,7 @@ export class DbClient<T> {
 ```
 
 Project Service
+
 ```typescript
 export class ProjectService {
   private readonly client: DbClient<Project>;
@@ -359,7 +353,7 @@ We want a step function to kick things off and do the following:
 1. Create a project
 2. Get the video transcript for ChatGPT
 3. Transcribe the audio and get the GIF for each section
-4. Set the project in a "Needs Approval" status 
+4. Set the project in a "Needs Approval" status
 
 ```typescript
 const failProjectTask = new tasks.LambdaInvoke(scope, "FailProjectInvoke", {
@@ -370,15 +364,11 @@ const failProjectTask = new tasks.LambdaInvoke(scope, "FailProjectInvoke", {
   }),
 });
 
-const getTranscriptTask = new tasks.LambdaInvoke(
-  scope,
-  "GetTranscriptInvoke",
-  {
-    lambdaFunction: props.getTranscriptLambda,
-    resultPath: "$.sections",
-    payloadResponseOnly: true,
-  }
-).addCatch(failProjectTask, {
+const getTranscriptTask = new tasks.LambdaInvoke(scope, "GetTranscriptInvoke", {
+  lambdaFunction: props.getTranscriptLambda,
+  resultPath: "$.sections",
+  payloadResponseOnly: true,
+}).addCatch(failProjectTask, {
   resultPath: "$.errors",
 });
 
@@ -430,9 +420,7 @@ const pendingApprovalTask = new tasks.LambdaInvoke(
 });
 
 return new sfn.StateMachine(scope, "StartProjectStateMachine", {
-  definition: getTranscriptTask
-    .next(sectionTasks)
-    .next(pendingApprovalTask),
+  definition: getTranscriptTask.next(sectionTasks).next(pendingApprovalTask),
 });
 ```
 
@@ -442,37 +430,28 @@ Our step function first gets the transcript and then runs the different processe
 
 We want this step function to be run after the user has approved the contents
 
-1. Mark the project as "Finalizing" 
+1. Mark the project as "Finalizing"
 2. Compile everything together
 3. Mark the project as "Completed"
 
 ```typescript
-
-const finalizingTask = new tasks.LambdaInvoke(
-  scope,
-  "FinalizingInvoke",
-  {
-    lambdaFunction: props.updateProjectLambda,
-    payload: sfn.TaskInput.fromObject({
-      projectId: sfn.JsonPath.stringAt("$.id"),
-      projectStatus: ProjectStatus.Finalizing,
-    }),
-  }
-).addCatch(failProjectTask, {
+const finalizingTask = new tasks.LambdaInvoke(scope, "FinalizingInvoke", {
+  lambdaFunction: props.updateProjectLambda,
+  payload: sfn.TaskInput.fromObject({
+    projectId: sfn.JsonPath.stringAt("$.id"),
+    projectStatus: ProjectStatus.Finalizing,
+  }),
+}).addCatch(failProjectTask, {
   resultPath: "$.errors",
 });
 
-const completeTask = new tasks.LambdaInvoke(
-  scope,
-  "CompleteInvoke",
-  {
-    lambdaFunction: props.updateProjectLambda,
-    payload: sfn.TaskInput.fromObject({
-      projectId: sfn.JsonPath.stringAt("$.id"),
-      projectStatus: ProjectStatus.Completed,
-    }),
-  }
-).addCatch(failProjectTask, {
+const completeTask = new tasks.LambdaInvoke(scope, "CompleteInvoke", {
+  lambdaFunction: props.updateProjectLambda,
+  payload: sfn.TaskInput.fromObject({
+    projectId: sfn.JsonPath.stringAt("$.id"),
+    projectStatus: ProjectStatus.Completed,
+  }),
+}).addCatch(failProjectTask, {
   resultPath: "$.errors",
 });
 
@@ -489,11 +468,11 @@ return new sfn.StateMachine(scope, "FinalizeProjectStateMachine", {
 
 We need a few lambdas to get things working:
 
-* Start project - kick off the start project state machine
-* Get GIF - gets the GIF for a section and stores it in s3
-* Text to audio - transcribes the text to audio and stores it in s3
-* Get transcript - gets the transcript from ChatGPT 
-* Movie maker - python script to compile everything into a MP4 file
+- Start project - kick off the start project state machine
+- Get GIF - gets the GIF for a section and stores it in s3
+- Text to audio - transcribes the text to audio and stores it in s3
+- Get transcript - gets the transcript from ChatGPT
+- Movie maker - python script to compile everything into a MP4 file
 
 We'll need a few more small lambdas for the final version, but this provides a basic outline of what we'll need.
 
@@ -535,7 +514,7 @@ export const handler: APIGatewayProxyHandler = async (
     const hasPendingOrActiveProjects = projectsForUser
       .unwrap()
       .some(
-        (project) =>
+        project =>
           project.status === ProjectStatus.InProgress ||
           project.status === ProjectStatus.NeedsApproval
       );
@@ -635,7 +614,6 @@ const speechConfig = tts.SpeechConfig.fromSubscription(
 );
 
 export const handler: Handler = async (incomingEvent): Promise<string> => {
-
   const section = ProjectSection.parse(incomingEvent);
 
   const synthesizer = new tts.SpeechSynthesizer(speechConfig);
@@ -644,7 +622,7 @@ export const handler: Handler = async (incomingEvent): Promise<string> => {
     const ttsResult = await new Promise<PassThrough>((resolve, reject) => {
       synthesizer.speakTextAsync(
         section.text,
-        (result) => {
+        result => {
           if (result.reason === tts.ResultReason.SynthesizingAudioCompleted) {
             const { audioData } = result;
             const bufferStream = new PassThrough();
@@ -652,7 +630,7 @@ export const handler: Handler = async (incomingEvent): Promise<string> => {
             resolve(bufferStream);
           }
         },
-        (error) => {
+        error => {
           console.error(error);
           reject("there was an issue transcribing the audio");
         }
@@ -718,8 +696,7 @@ const INITIAL_PROMPT = `
   Next, I will provide the topic that you will create the transcript for.
 `;
 
-export const handler: Handler = async (incomingEvent) => {
-
+export const handler: Handler = async incomingEvent => {
   const project = Project.parse(incomingEvent);
 
   const completion = await openai.createChatCompletion({
@@ -770,7 +747,7 @@ export const handler: Handler = async (incomingEvent) => {
 
 ### Movie Maker Lambda
 
-This python script uses moviepy to compile everything into a lambda. It uses docker because moviepy has some external dependencies. 
+This python script uses moviepy to compile everything into a lambda. It uses docker because moviepy has some external dependencies.
 This lambda will read the files from s3, combine them all together, loop the GIFs, and upload the video to the video s3 bucket.
 
 ```python
@@ -877,4 +854,5 @@ def handler(event, context):
 ```
 
 ## Next Steps
+
 In part 2 we'll combine all of the pieces we've built and deploy it to AWS.
