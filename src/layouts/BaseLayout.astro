@@ -1,0 +1,47 @@
+---
+import "@/styles/globals.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  canonical?: string;
+}
+
+const {
+  title,
+  description = "Will Redington — Senior Software Engineer and Technical Architect. Systems design, cloud infrastructure, and architect-level engineering.",
+  canonical,
+} = Astro.props;
+
+const siteTitle = title.includes("Will Redington")
+  ? title
+  : `${title} — Will Redington`;
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08090b" />
+    <meta name="description" content={description} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <meta property="og:title" content={siteTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{siteTitle}</title>
+  </head>
+  <body class="min-h-screen bg-ink-950 text-ink-200 antialiased">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-ink-900 focus:px-3 focus:py-2 focus:text-ink-50"
+    >
+      Skip to content
+    </a>
+    <slot />
+  </body>
+</html>

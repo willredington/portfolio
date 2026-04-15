@@ -1,0 +1,41 @@
+---
+import { getCollection } from "astro:content";
+import CaseStudyCard from "./CaseStudyCard.astro";
+
+const studies = (await getCollection("caseStudies")).sort(
+  (a, b) => a.data.order - b.data.order,
+);
+---
+
+<section id="case-studies" class="border-b border-ink-900 py-24">
+  <div class="container-wide">
+    <div class="grid gap-12 md:grid-cols-[1fr_1.5fr]">
+      <div>
+        <p class="eyebrow">Case Studies</p>
+        <h2 class="mt-4 text-3xl md:text-4xl">Selected work</h2>
+        <p class="mt-4 max-w-sm text-sm leading-relaxed text-ink-400">
+          Three deeper looks at systems I designed and shipped — chosen to
+          represent distributed architecture, cloud infrastructure, and
+          serverless product engineering.
+        </p>
+      </div>
+
+      <div class="space-y-6">
+        {
+          studies.map((s, i) => (
+            <CaseStudyCard
+              slug={s.id}
+              title={s.data.title}
+              outcome={s.data.outcome}
+              summary={s.data.summary}
+              stack={s.data.stack}
+              company={s.data.company}
+              year={s.data.year}
+              index={i + 1}
+            />
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,110 @@
+---
+interface Role {
+  company: string;
+  title: string;
+  period: string;
+  location: string;
+  bullets: string[];
+}
+
+const roles: Role[] = [
+  {
+    company: "Livefront",
+    title: "Technical Architect",
+    period: "2025 — Present",
+    location: "Remote",
+    bullets: [
+      "Designing APIs and systems with diagramming tools and OpenAPI specifications.",
+      "Building DevOps solutions and internal tooling for task automation across platforms.",
+    ],
+  },
+  {
+    company: "Freya Systems",
+    title: "Technical Architect",
+    period: "2023 — 2024",
+    location: "Remote",
+    bullets: [
+      "Mentored development teams and enforced code-quality standards across projects.",
+      "Stood up cloud architectures with AWS CDK + TypeScript; designed DevOps pipelines across AWS, Azure, and OpenShift.",
+      "Ran OpenShift Container Platform for additional Kubernetes workloads; Azure Functions for serverless work.",
+    ],
+  },
+  {
+    company: "ComplyAuto",
+    title: "Senior Software Engineer (Contract)",
+    period: "2022 — 2023",
+    location: "Remote",
+    bullets: [
+      "Built environmental-compliance features on a Fastify + TypeScript backend with Nexus-generated types.",
+    ],
+  },
+  {
+    company: "98point6",
+    title: "Software Engineer II",
+    period: "2021 — 2022",
+    location: "Remote",
+    bullets: [
+      "Shipped an electronic-prescription system that replaced manual call-in prescriptions, increasing physician efficiency by orders of magnitude.",
+      "Built and maintained APIs supporting complex healthcare processes and AI-driven workflows.",
+    ],
+  },
+  {
+    company: "Freya Systems",
+    title: "Senior Software Engineer",
+    period: "2019 — 2021",
+    location: "Media, PA",
+    bullets: [
+      "Delivered Java, Spring, Node, and TypeScript services enabling clients to make informed fleet-management decisions.",
+      "Partnered with data scientists to integrate analytical models into production applications.",
+    ],
+  },
+  {
+    company: "The Boeing Company",
+    title: "Software Engineer",
+    period: "2016 — 2019",
+    location: "Ridley Park, PA",
+    bullets: [
+      "Designed and shipped software for military clients, including analytics and reporting on mechanical health of military aircraft.",
+    ],
+  },
+];
+---
+
+<section id="experience" class="border-b border-ink-900 py-24">
+  <div class="container-wide">
+    <div class="grid gap-12 md:grid-cols-[1fr_1.5fr]">
+      <div>
+        <p class="eyebrow">Experience</p>
+        <h2 class="mt-4 text-3xl md:text-4xl">Career timeline</h2>
+      </div>
+
+      <ol class="relative space-y-10">
+        {
+          roles.map((role) => (
+            <li class="border-l border-ink-800 pl-8 md:pl-10">
+              <div class="absolute -left-[5px] mt-2 h-2.5 w-2.5 rounded-full bg-accent/60" />
+              <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 class="text-xl text-ink-50">
+                  {role.title}
+                  <span class="text-ink-400"> · </span>
+                  <span class="font-serif text-ink-200">{role.company}</span>
+                </h3>
+                <span class="font-mono text-xs text-ink-400">
+                  {role.period} · {role.location}
+                </span>
+              </div>
+              <ul class="mt-3 space-y-2 text-ink-300">
+                {role.bullets.map((b) => (
+                  <li class="flex gap-3 text-[0.95rem] leading-relaxed">
+                    <span class="mt-2 inline-block h-px w-3 shrink-0 bg-ink-600" />
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </div>
+</section>

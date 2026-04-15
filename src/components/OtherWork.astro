@@ -1,0 +1,65 @@
+---
+interface Work {
+  title: string;
+  summary: string;
+  stack: string[];
+}
+
+const items: Work[] = [
+  {
+    title: "Aircraft Data ETL Pipeline",
+    summary:
+      "Ingested complex military-aircraft telemetry from disparate sources into a unified analytics layer.",
+    stack: ["Java", "Python", "Spring Batch", "Hadoop", "Spark"],
+  },
+  {
+    title: "Multiplayer AI Trivia Game",
+    summary:
+      "Online multiplayer trivia service with AI-generated questions, event-sourced game state, and real-time rooms.",
+    stack: [
+      "EKS",
+      "FastAPI",
+      "Next.js",
+      "Keycloak",
+      "Redis",
+      "WebSockets",
+      "Event Sourcing",
+    ],
+  },
+  {
+    title: "Developer Mentorship & Training",
+    summary:
+      "Built template projects, code-review standards, and training programs that raised the floor for multiple engineering teams.",
+    stack: ["Mentorship", "Process", "Standards"],
+  },
+];
+---
+
+<section id="other-work" class="border-b border-ink-900 py-24">
+  <div class="container-wide">
+    <div class="grid gap-12 md:grid-cols-[1fr_1.5fr]">
+      <div>
+        <p class="eyebrow">Other work</p>
+        <h2 class="mt-4 text-3xl md:text-4xl">Worth mentioning</h2>
+      </div>
+
+      <ul class="grid gap-5 md:grid-cols-1">
+        {
+          items.map((item) => (
+            <li class="rounded-lg border border-ink-800 bg-ink-900/40 p-6">
+              <h3 class="text-lg text-ink-50">{item.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-300">
+                {item.summary}
+              </p>
+              <div class="mt-4 flex flex-wrap gap-2">
+                {item.stack.map((s) => (
+                  <span class="pill">{s}</span>
+                ))}
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</section>

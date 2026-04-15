@@ -1,0 +1,93 @@
+---
+title: "A personalized learning platform that grows a mind map from what you read"
+outcome: "An AI content-ingestion pipeline turns ad-hoc web reading into a structured knowledge base and an automatically generated mind map of everything you've learned."
+summary: "A full-stack AI platform where users capture content through a browser extension, a Step Functions pipeline extracts structured knowledge with LLMs, and every ingestion grows an auto-generated mind map — a living visual graph of topics and relationships that reflects the user's knowledge as it accumulates."
+stack:
+  - "AWS CDK"
+  - "Step Functions"
+  - "API Gateway"
+  - "WebSockets"
+  - "EventBridge"
+  - "Next.js"
+  - "tRPC"
+  - "Drizzle + PostgreSQL"
+  - "Neo4j"
+  - "Redis"
+  - "Vercel AI SDK"
+  - "Langfuse"
+  - "promptfoo"
+  - "Clerk"
+  - "Stripe"
+order: 1
+role: "Sole architect and full-stack engineer"
+year: "2025"
+---
+
+## The problem
+
+People read constantly — articles, papers, docs — and almost none of it gets captured in a form they can navigate later. I wanted a system that turns unstructured reading into something you can actually see: a **mind map** of topics and relationships that grows automatically as you ingest content, so the shape of your own knowledge becomes visible and navigable over time.
+
+That meant three hard problems in one:
+
+1. An ingestion surface the user barely has to think about (a browser extension, not a form).
+2. An AI pipeline that reliably extracts, classifies, and organizes knowledge — with enough guardrails that the mind map stays coherent at scale.
+3. A data layer that keeps relational truth (content, sources, subscriptions) and graph truth (topic hierarchy, relationships) in sync so the map reflects the library.
+
+## Architecture
+
+<img src="/diagrams/knowledge-base.svg" alt="Knowledge Base architecture: ingestion pipeline feeding a mind map in Neo4j and relational data in PostgreSQL" />
+
+The system is a Turborepo monorepo with four apps and seven packages. The interesting shape is the split between **write path** (Step Functions pipeline mutating both PostgreSQL and Neo4j, incrementally growing the mind map with each ingestion) and **read path** (tRPC Lambda reading cached + aggregated data for the dashboard's views of the knowledge base and mind map), with **EventBridge** connecting the two and a **WebSocket API** pushing real-time progress back to the dashboard while content is being processed.
+
+## Key decisions
+
+### Step Functions for the ingestion pipeline
+
+Content processing is a chain of AI workflows: extract metadata → evaluate quality → classify review category → extract knowledge → extract topics → infer topic parents → plan graph mutations → score relevancy. Each step can fail independently, each has different compute and cost profiles, and the happy path is long.
+
+Step Functions was the right fit because:
+
+- Each AI call gets its own isolated retry / timeout / error branch.
+- Per-execution history is observable without extra tooling.
+- Steps can fan out where the work allows (topic inference across many knowledge fragments in parallel).
+
+Running this as a single long-running Lambda would have traded clarity for a deployment footprint I didn't need.
+
+### PostgreSQL for content, Neo4j for the mind map
+
+The core relational data — content, content-sources, contexts, topics, subscriptions — lives in **PostgreSQL** (Drizzle ORM, with `tsvector` for full-text search). The **mind map** — topic parent relationships, topic-to-fragment links, and the graph mutations planned by the ingestion pipeline — lives in **Neo4j**.
+
+The important tradeoff: I didn't try to represent graph traversal in Postgres. Postgres does recursive CTEs, but nothing beats a graph database for the traversal queries a navigable mind map needs — "what hangs under this topic," "how is this concept related to that one," "how has the map changed since last ingestion." The two stores stay consistent through the pipeline's mutation-planning step, which produces an explicit plan that both sides apply.
+
+### AI evaluation with promptfoo, not unit tests
+
+The AI workflow packages don't have unit tests — they have **promptfoo evaluations**. Each workflow (`extract-metadata`, `evaluate-content-quality`, `extract-knowledge-base`, `infer-topic-parent`, `plan-graph-mutations`, and others) has its own config and dataset. Every change to a prompt or model runs against the eval set before merging.
+
+This was the right call: LLM behavior shifts under model upgrades and prompt edits in ways that unit tests can't catch. Evals give me a regression bed that understands _outcomes_, not strings.
+
+Langfuse traces every workflow run with OTel, so when an eval regresses I can pull the exact trace and compare side-by-side.
+
+### EventBridge over direct invocation
+
+Nine domain events (`content-metadata-updated`, `content-quality-evaluated`, `content-processing-status-changed`, `knowledge-graph-built`, and others) flow through **EventBridge**. The pipeline emits them; a WebSocket handler and several side-effect Lambdas subscribe.
+
+Using EventBridge instead of direct Lambda invocation kept the pipeline code focused on the happy path — new consumers (the WebSocket push, analytics, cache invalidation) added later without touching the pipeline.
+
+### Monitoring as CDK Aspects
+
+CloudWatch alarms across the stacks are wired by **CDK Aspects** (`error-alarm-aspect`, `lambda-logged-error-alarm-aspect`, `sqs-dlq-alarm-aspect`, `langfuse-aspect`). Nothing in the app code registers alarms manually — the aspects walk the tree at synth time and attach them. New Lambdas or SQS queues inherit the right monitoring automatically.
+
+This was one of the highest-leverage decisions in the codebase: the monitoring story got better over time without anyone thinking about it.
+
+## Stack
+
+**Infrastructure:** AWS CDK, Lambda, Step Functions, API Gateway (HTTP + WebSocket), EventBridge, SQS, CloudWatch, Stripe and Clerk webhooks.
+**Data:** PostgreSQL (Drizzle ORM, tsvector), Neo4j, Redis (ioredis).
+**Backend:** TypeScript, tRPC, Zod, event-driven handlers.
+**AI:** Vercel AI SDK, Langfuse OTel tracing, promptfoo evals, `FAST_AI_MODEL` / `SMART_AI_MODEL` split for cost control.
+**Frontend:** Next.js dashboard, Next.js marketing site, WXT browser extension, shared Radix + Tailwind component library.
+**Auth & payments:** Clerk, Stripe.
+
+## Impact
+
+Beyond the product itself, this project was the proving ground for a set of patterns I now carry into every architecture I lead: Step-Functions-as-workflow over ad-hoc chaining, evals-not-unit-tests for AI workflows, EventBridge-first for domain events, and aspect-based monitoring as a default. It's the most complete end-to-end system I've shipped by myself — infrastructure, backend, AI, frontend, and extension.

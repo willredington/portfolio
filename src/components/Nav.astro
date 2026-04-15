@@ -1,0 +1,45 @@
+---
+interface NavLink {
+  label: string;
+  href: string;
+}
+
+const links: NavLink[] = [
+  { label: "About", href: "/#about" },
+  { label: "Experience", href: "/#experience" },
+  { label: "Case Studies", href: "/#case-studies" },
+  { label: "Contact", href: "/#contact" },
+];
+---
+
+<header
+  class="sticky top-0 z-40 border-b border-ink-900 bg-ink-950/80 backdrop-blur supports-[backdrop-filter]:bg-ink-950/60"
+>
+  <div
+    class="container-wide flex h-16 items-center justify-between"
+  >
+    <a
+      href="/"
+      class="font-serif text-lg font-medium text-ink-50 hover:text-accent"
+    >
+      Will Redington
+    </a>
+
+    <nav class="hidden items-center gap-8 md:flex" aria-label="Primary">
+      {
+        links.map(({ label, href }) => (
+          <a
+            href={href}
+            class="text-sm text-ink-300 hover:text-ink-50"
+          >
+            {label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <a href="/resume.pdf" class="btn-primary" download>
+      Download Resume
+    </a>
+  </div>
+</header>

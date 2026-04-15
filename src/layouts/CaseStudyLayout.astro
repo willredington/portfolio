@@ -1,0 +1,55 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import Nav from "@/components/Nav.astro";
+import Footer from "@/components/Footer.astro";
+
+interface Props {
+  title: string;
+  outcome: string;
+  summary: string;
+  stack: string[];
+  company?: string;
+  role?: string;
+  year?: string;
+}
+
+const { title, outcome, summary, stack, company, role, year } = Astro.props;
+
+const meta = [role, company, year].filter(Boolean).join(" · ");
+---
+
+<BaseLayout title={title} description={summary}>
+  <Nav />
+  <main id="main" class="py-16 md:py-24">
+    <article class="container-prose max-w-3xl">
+      <a
+        href="/#case-studies"
+        class="inline-flex items-center gap-2 font-mono text-xs text-ink-400 hover:text-accent"
+      >
+        ← All case studies
+      </a>
+
+      <header class="mt-10 space-y-6 border-b border-ink-800 pb-10">
+        <p class="eyebrow">{meta}</p>
+        <h1
+          class="font-serif text-4xl font-medium leading-[1.1] text-ink-50 md:text-5xl"
+        >
+          {title}
+        </h1>
+        <p class="text-xl leading-relaxed text-ink-200">
+          <span class="text-accent">Outcome:</span>
+          {outcome}
+        </p>
+        <p class="text-ink-300">{summary}</p>
+        <div class="flex flex-wrap gap-2 pt-2">
+          {stack.map((s) => <span class="pill">{s}</span>)}
+        </div>
+      </header>
+
+      <div class="prose-editorial mt-2">
+        <slot />
+      </div>
+    </article>
+  </main>
+  <Footer />
+</BaseLayout>

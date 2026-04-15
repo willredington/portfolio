@@ -1,0 +1,69 @@
+---
+title: "Moving a telehealth clinic off phone-call prescriptions"
+outcome: "Replaced manual phone-in prescriptions with a serverless electronic-prescription system that improved physician throughput by orders of magnitude."
+summary: "Designed and shipped the serverless backend that moved clinicians from calling pharmacies by hand to issuing electronic prescriptions through a FHIR-based workflow — with idempotency, durable state, and audit guarantees fit for a healthcare platform."
+stack:
+  - "AWS CDK"
+  - "TypeScript"
+  - "Lambda"
+  - "Step Functions"
+  - "DynamoDB"
+  - "SQS"
+  - "API Gateway"
+  - "FHIR"
+  - "CloudWatch"
+order: 3
+role: "Software Engineer II"
+year: "2021–2022"
+company: "98point6"
+---
+
+## The problem
+
+When a physician needed to prescribe medication, the workflow was: pick up the phone, call the pharmacy, read out the prescription. That's as slow, error-prone, and un-auditable as it sounds — and it capped how many patients a physician could see in a day. The work was to replace that flow with a system that lets a clinician submit a structured prescription from the platform and have it reach the pharmacy correctly, every time, with a trail of what happened.
+
+Healthcare workflows don't get to be "almost right." Prescriptions are safety-critical, need to be replayable under audit, and have to handle a pharmacy network that will occasionally be slow, wrong, or unreachable.
+
+## Architecture
+
+<img src="/diagrams/electronic-prescriptions.svg" alt="Electronic prescriptions architecture diagram" />
+
+The system is serverless end-to-end. Clinicians submit a prescription from the platform UI; an intake Lambda behind API Gateway validates and hands off to a **Step Functions** workflow that validates, runs drug interaction and allergy checks, encodes the prescription as FHIR, routes it to the pharmacy network, tracks acknowledgements, and notifies back. **DynamoDB** is the durable record; **SQS** handles retries and backpressure between the workflow and the pharmacy gateway. Everything is written in **TypeScript** against **AWS CDK**.
+
+## Key decisions
+
+### Step Functions for every prescription
+
+Every prescription becomes its own Step Functions execution. This was the single biggest lever in the design:
+
+- **Full state per prescription, for free.** Execution history is the audit trail. If someone asks "what happened with this prescription three months ago," the answer is in the Step Functions execution, not assembled from log scrapes.
+- **Error branches are explicit.** Pharmacy timeouts, validation failures, drug-interaction rejections all route to their own states with their own retry and notification rules.
+- **Replay is just restarting an execution.** During incidents, reprocessing a specific prescription is one command, not a spelunking expedition.
+
+### Idempotency keys in DynamoDB
+
+Every incoming submission carries a client-generated idempotency key, which is conditionally written to DynamoDB before the workflow starts. A retry from the UI — or a network hiccup that double-submits — resolves to the same execution rather than creating a duplicate prescription. For healthcare this isn't a nice-to-have; it's a correctness invariant.
+
+### FHIR as the wire format
+
+The pharmacy network speaks FHIR. The workflow's "encode" step transforms the internal prescription model into the specific FHIR resources the gateway expects. Keeping FHIR at the boundary (and not letting it bleed into internal models) meant the domain code stayed readable, and the FHIR schema's considerable complexity stayed behind a single translation layer.
+
+### SQS for pharmacy backpressure
+
+The pharmacy network can be slow or briefly unavailable. Dispatching directly from the workflow would have meant every transient pharmacy issue became a workflow failure. SQS between the workflow and the dispatcher decouples them: the workflow hands off quickly, the dispatcher drains at the pharmacy's pace, and a dead-letter queue catches persistent failures for human review. CloudWatch alarms on the DLQ depth became one of the most useful on-call signals.
+
+### CDK in TypeScript
+
+The whole infrastructure — API Gateway, Lambdas, Step Functions definitions, DynamoDB tables, SQS queues, IAM — is TypeScript CDK code. Two things that mattered: (1) the workflow definitions were strongly typed alongside the handlers, so a renamed state or field failed at build time, not at runtime; (2) promoting infrastructure changes through environments worked the same as promoting code.
+
+## Stack
+
+**Frontend integration:** Internal clinician-facing web app on the 98point6 platform.
+**Edge & compute:** API Gateway, Lambda (TypeScript), Step Functions workflows.
+**State:** DynamoDB with idempotency keys; SQS (standard + DLQ) for async dispatch.
+**Integrations:** FHIR-based pharmacy gateway.
+**Infrastructure:** AWS CDK, CloudWatch for logs, metrics, and alarms.
+
+## Impact
+
+The primary outcome was the one the business asked for: physicians no longer spent minutes per patient on pharmacy phone calls, which freed up a meaningful portion of the clinical day. The secondary outcome was auditability — every prescription since go-live has a durable, replayable record in Step Functions. The project also set a pattern the team reused for other safety-critical workflows: Step Functions per domain action, DynamoDB for idempotency, SQS for external-system backpressure, everything in CDK.

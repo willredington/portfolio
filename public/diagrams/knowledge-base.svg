@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 640" role="img" aria-label="Knowledge Base architecture: browser extension and dashboard feed an AI ingestion pipeline that grows a mind map stored in Neo4j alongside relational content in PostgreSQL, with real-time progress over WebSockets.">
+  <style>
+    .bg { fill: #0d0e11; }
+    .panel { fill: #131418; stroke: #2a2d34; stroke-width: 1; rx: 10; ry: 10; }
+    .panel-accent { fill: #131418; stroke: #d4a574; stroke-width: 1; rx: 10; ry: 10; }
+    .panel-header { fill: #6b707c; font: 500 11px 'Inter', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
+    .box { fill: #1c1e23; stroke: #2a2d34; stroke-width: 1; rx: 6; ry: 6; }
+    .box-title { fill: #e4e6ea; font: 500 13px 'Inter', sans-serif; }
+    .box-sub { fill: #9ea3ae; font: 11px 'Inter', sans-serif; }
+    .pipe-title { fill: #d4a574; font: 500 12px 'Inter', sans-serif; }
+    .arrow { stroke: #6b707c; stroke-width: 1.2; fill: none; }
+    .arrow-accent { stroke: #d4a574; stroke-width: 1.5; fill: none; }
+    .label { fill: #9ea3ae; font: 10px 'Inter', sans-serif; }
+    .step { fill: #1c1e23; stroke: #3b3f48; stroke-width: 1; rx: 4; ry: 4; }
+    .step-text { fill: #c9ccd3; font: 11px 'Inter', sans-serif; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b707c" />
+    </marker>
+    <marker id="arr-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d4a574" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="920" height="640"/>
+
+  <!-- Clients -->
+  <text class="panel-header" x="40" y="50">Clients</text>
+  <rect class="panel" x="40" y="60" width="220" height="150"/>
+  <rect class="box" x="60" y="82" width="180" height="50"/>
+  <text class="box-title" x="76" y="104">Browser extension</text>
+  <text class="box-sub" x="76" y="120">WXT — capture content</text>
+  <rect class="box" x="60" y="142" width="180" height="50"/>
+  <text class="box-title" x="76" y="164">Web dashboard</text>
+  <text class="box-sub" x="76" y="180">Next.js — query + chat UI</text>
+
+  <!-- Auth + API -->
+  <text class="panel-header" x="320" y="50">Edge / Auth</text>
+  <rect class="panel" x="320" y="60" width="260" height="150"/>
+  <rect class="box" x="340" y="82" width="220" height="50"/>
+  <text class="box-title" x="356" y="104">API Gateway</text>
+  <text class="box-sub" x="356" y="120">HTTP + WebSocket</text>
+  <rect class="box" x="340" y="142" width="220" height="50"/>
+  <text class="box-title" x="356" y="164">Lambda authorizer</text>
+  <text class="box-sub" x="356" y="180">Clerk JWT verification</text>
+
+  <!-- Services -->
+  <text class="panel-header" x="640" y="50">Services</text>
+  <rect class="panel" x="640" y="60" width="240" height="150"/>
+  <rect class="box" x="660" y="82" width="200" height="50"/>
+  <text class="box-title" x="676" y="104">tRPC Lambda</text>
+  <text class="box-sub" x="676" y="120">Typed API · data-layer</text>
+  <rect class="box" x="660" y="142" width="200" height="50"/>
+  <text class="box-title" x="676" y="164">WebSocket handler</text>
+  <text class="box-sub" x="676" y="180">Fan-out progress events</text>
+
+  <!-- Ingestion pipeline -->
+  <text class="panel-header" x="40" y="260">Content Ingestion Pipeline · Step Functions</text>
+  <rect class="panel-accent" x="40" y="270" width="840" height="130"/>
+
+  <g>
+    <rect class="step" x="60" y="310" width="110" height="34"/>
+    <text class="step-text" x="70" y="332">Extract metadata</text>
+    <rect class="step" x="182" y="310" width="110" height="34"/>
+    <text class="step-text" x="192" y="332">Evaluate quality</text>
+    <rect class="step" x="304" y="310" width="130" height="34"/>
+    <text class="step-text" x="314" y="332">Classify category</text>
+    <rect class="step" x="446" y="310" width="140" height="34"/>
+    <text class="step-text" x="456" y="332">Extract knowledge</text>
+    <rect class="step" x="598" y="310" width="120" height="34"/>
+    <text class="step-text" x="608" y="332">Infer topics</text>
+    <rect class="step" x="730" y="310" width="140" height="34"/>
+    <text class="step-text" x="740" y="332">Plan graph mutations</text>
+
+    <path class="arrow" d="M170,327 L182,327" marker-end="url(#arr)"/>
+    <path class="arrow" d="M292,327 L304,327" marker-end="url(#arr)"/>
+    <path class="arrow" d="M434,327 L446,327" marker-end="url(#arr)"/>
+    <path class="arrow" d="M586,327 L598,327" marker-end="url(#arr)"/>
+    <path class="arrow" d="M718,327 L730,327" marker-end="url(#arr)"/>
+  </g>
+
+  <text class="pipe-title" x="60" y="296">AI workflows · Vercel AI SDK · Langfuse traces</text>
+
+  <!-- Data stores -->
+  <text class="panel-header" x="40" y="440">Data</text>
+  <rect class="panel" x="40" y="450" width="540" height="130"/>
+  <rect class="box" x="60" y="472" width="150" height="90"/>
+  <text class="box-title" x="78" y="494">PostgreSQL</text>
+  <text class="box-sub" x="78" y="510">Drizzle ORM</text>
+  <text class="box-sub" x="78" y="526">Content, topics</text>
+  <text class="box-sub" x="78" y="542">tsvector search</text>
+
+  <rect class="box" x="222" y="472" width="150" height="90"/>
+  <text class="box-title" x="240" y="494">Neo4j</text>
+  <text class="box-sub" x="240" y="510">Knowledge graph</text>
+  <text class="box-sub" x="240" y="526">Topic relationships</text>
+
+  <rect class="box" x="384" y="472" width="176" height="90"/>
+  <text class="box-title" x="402" y="494">Redis</text>
+  <text class="box-sub" x="402" y="510">Query cache</text>
+  <text class="box-sub" x="402" y="526">ioredis</text>
+
+  <!-- Events -->
+  <text class="panel-header" x="620" y="440">Events</text>
+  <rect class="panel" x="620" y="450" width="260" height="130"/>
+  <rect class="box" x="640" y="472" width="220" height="42"/>
+  <text class="box-title" x="658" y="494">EventBridge bus</text>
+  <text class="box-sub" x="658" y="508">9 domain event schemas</text>
+  <rect class="box" x="640" y="522" width="220" height="42"/>
+  <text class="box-title" x="658" y="544">Event handlers (Lambda)</text>
+  <text class="box-sub" x="658" y="558">Fan-out to consumers</text>
+
+  <!-- Arrows -->
+  <!-- Clients → Edge -->
+  <path class="arrow" d="M260,107 L320,107" marker-end="url(#arr)"/>
+  <path class="arrow" d="M260,167 L320,167" marker-end="url(#arr)"/>
+  <!-- Edge → Services -->
+  <path class="arrow" d="M580,107 L640,107" marker-end="url(#arr)"/>
+  <path class="arrow" d="M580,167 L640,167" marker-end="url(#arr)"/>
+  <!-- tRPC → Pipeline -->
+  <path class="arrow-accent" d="M760,132 C760,200 200,220 200,270" marker-end="url(#arr-accent)"/>
+  <text class="label" x="540" y="245">start execution</text>
+  <!-- Pipeline → Data -->
+  <path class="arrow-accent" d="M200,400 L200,450" marker-end="url(#arr-accent)"/>
+  <path class="arrow-accent" d="M300,400 L300,472" marker-end="url(#arr-accent)"/>
+  <!-- Pipeline → Events -->
+  <path class="arrow-accent" d="M740,400 L740,450" marker-end="url(#arr-accent)"/>
+  <!-- Events → WebSocket → Dashboard -->
+  <path class="arrow" d="M620,495 C540,495 780,260 780,210" marker-end="url(#arr)"/>
+  <path class="arrow" d="M660,175 C560,250 320,260 260,180" marker-end="url(#arr)"/>
+  <text class="label" x="330" y="245">realtime progress</text>
+</svg>

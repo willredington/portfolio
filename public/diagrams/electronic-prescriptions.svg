@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 560" role="img" aria-label="Electronic prescriptions: a clinician UI submits a prescription through API Gateway to a Step Functions workflow that validates, FHIR-encodes, and routes the prescription to a pharmacy network, writing state to DynamoDB and confirming back to the clinician.">
+  <style>
+    .bg { fill: #0d0e11; }
+    .panel { fill: #131418; stroke: #2a2d34; stroke-width: 1; rx: 10; ry: 10; }
+    .panel-accent { fill: #131418; stroke: #d4a574; stroke-width: 1; rx: 10; ry: 10; }
+    .box { fill: #1c1e23; stroke: #2a2d34; stroke-width: 1; rx: 6; ry: 6; }
+    .step { fill: #1c1e23; stroke: #3b3f48; stroke-width: 1; rx: 4; ry: 4; }
+    .panel-header { fill: #6b707c; font: 500 11px 'Inter', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
+    .box-title { fill: #e4e6ea; font: 500 13px 'Inter', sans-serif; }
+    .box-sub { fill: #9ea3ae; font: 11px 'Inter', sans-serif; }
+    .step-text { fill: #c9ccd3; font: 11px 'Inter', sans-serif; }
+    .pipe-title { fill: #d4a574; font: 500 12px 'Inter', sans-serif; }
+    .arrow { stroke: #6b707c; stroke-width: 1.2; fill: none; }
+    .arrow-accent { stroke: #d4a574; stroke-width: 1.5; fill: none; }
+    .label { fill: #9ea3ae; font: 10px 'Inter', sans-serif; }
+  </style>
+  <defs>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b707c" />
+    </marker>
+    <marker id="arr3-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d4a574" />
+    </marker>
+  </defs>
+  <rect class="bg" width="920" height="560"/>
+
+  <!-- Clinicians -->
+  <text class="panel-header" x="40" y="50">Clinicians</text>
+  <rect class="panel" x="40" y="60" width="200" height="150"/>
+  <rect class="box" x="60" y="82" width="160" height="50"/>
+  <text class="box-title" x="76" y="104">Clinician UI</text>
+  <text class="box-sub" x="76" y="120">Platform web app</text>
+  <rect class="box" x="60" y="142" width="160" height="50"/>
+  <text class="box-title" x="76" y="164">Auth (OAuth / JWT)</text>
+  <text class="box-sub" x="76" y="180">Role-based access</text>
+
+  <!-- Edge -->
+  <text class="panel-header" x="300" y="50">Edge</text>
+  <rect class="panel" x="300" y="60" width="200" height="150"/>
+  <rect class="box" x="320" y="82" width="160" height="50"/>
+  <text class="box-title" x="336" y="104">API Gateway</text>
+  <text class="box-sub" x="336" y="120">Regional endpoint</text>
+  <rect class="box" x="320" y="142" width="160" height="50"/>
+  <text class="box-title" x="336" y="164">Intake Lambda</text>
+  <text class="box-sub" x="336" y="180">Validate + enqueue</text>
+
+  <!-- Workflow -->
+  <text class="panel-header" x="40" y="260">Prescription workflow · Step Functions</text>
+  <rect class="panel-accent" x="40" y="270" width="840" height="130"/>
+  <text class="pipe-title" x="60" y="296">Idempotent · versioned · full state persisted per execution</text>
+
+  <rect class="step" x="60" y="310" width="110" height="34"/>
+  <text class="step-text" x="72" y="332">Validate input</text>
+  <rect class="step" x="182" y="310" width="130" height="34"/>
+  <text class="step-text" x="194" y="332">Drug + allergy check</text>
+  <rect class="step" x="324" y="310" width="120" height="34"/>
+  <text class="step-text" x="336" y="332">Encode as FHIR</text>
+  <rect class="step" x="456" y="310" width="130" height="34"/>
+  <text class="step-text" x="468" y="332">Route to pharmacy</text>
+  <rect class="step" x="598" y="310" width="120" height="34"/>
+  <text class="step-text" x="610" y="332">Track ack / errors</text>
+  <rect class="step" x="730" y="310" width="140" height="34"/>
+  <text class="step-text" x="742" y="332">Audit + notify back</text>
+
+  <path class="arrow" d="M170,327 L182,327" marker-end="url(#arr3)"/>
+  <path class="arrow" d="M312,327 L324,327" marker-end="url(#arr3)"/>
+  <path class="arrow" d="M444,327 L456,327" marker-end="url(#arr3)"/>
+  <path class="arrow" d="M586,327 L598,327" marker-end="url(#arr3)"/>
+  <path class="arrow" d="M718,327 L730,327" marker-end="url(#arr3)"/>
+
+  <!-- Storage + queues -->
+  <text class="panel-header" x="40" y="440">State + queues</text>
+  <rect class="panel" x="40" y="450" width="540" height="100"/>
+  <rect class="box" x="60" y="466" width="160" height="70"/>
+  <text class="box-title" x="76" y="486">DynamoDB</text>
+  <text class="box-sub" x="76" y="502">Prescription records</text>
+  <text class="box-sub" x="76" y="516">Idempotency keys</text>
+
+  <rect class="box" x="232" y="466" width="160" height="70"/>
+  <text class="box-title" x="248" y="486">SQS</text>
+  <text class="box-sub" x="248" y="502">Retry queues + DLQ</text>
+  <text class="box-sub" x="248" y="516">Pharmacy backpressure</text>
+
+  <rect class="box" x="404" y="466" width="156" height="70"/>
+  <text class="box-title" x="420" y="486">CloudWatch</text>
+  <text class="box-sub" x="420" y="502">Audit log stream</text>
+  <text class="box-sub" x="420" y="516">Alarms on DLQ</text>
+
+  <!-- External -->
+  <text class="panel-header" x="620" y="440">External</text>
+  <rect class="panel" x="620" y="450" width="260" height="100"/>
+  <rect class="box" x="640" y="466" width="220" height="70"/>
+  <text class="box-title" x="656" y="486">Pharmacy network</text>
+  <text class="box-sub" x="656" y="502">FHIR-based gateway</text>
+  <text class="box-sub" x="656" y="516">Acks / error callbacks</text>
+
+  <!-- Arrows -->
+  <path class="arrow" d="M240,107 L300,107" marker-end="url(#arr3)"/>
+  <path class="arrow-accent" d="M420,192 L420,270" marker-end="url(#arr3-accent)"/>
+  <text class="label" x="430" y="230">start execution</text>
+  <path class="arrow-accent" d="M140,400 L140,450" marker-end="url(#arr3-accent)"/>
+  <path class="arrow-accent" d="M310,400 L310,450" marker-end="url(#arr3-accent)"/>
+  <path class="arrow-accent" d="M520,400 L740,450" marker-end="url(#arr3-accent)"/>
+  <text class="label" x="560" y="418">FHIR dispatch</text>
+  <!-- response back to clinician -->
+  <path class="arrow" d="M870,390 C870,180 260,180 160,140" marker-end="url(#arr3)"/>
+  <text class="label" x="780" y="280">confirmation</text>
+</svg>

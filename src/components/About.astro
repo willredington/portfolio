@@ -1,0 +1,48 @@
+---
+const strengths = [
+  {
+    title: "Clean code",
+    body: "Readable, correct, and boring where it should be. I invest in names, boundaries, and tests so the next engineer moves fast.",
+  },
+  {
+    title: "Clear communication",
+    body: "Translating distributed-systems and infrastructure concepts into language stakeholders can reason about — without flattening the nuance.",
+  },
+  {
+    title: "Multi-disciplinary expertise",
+    body: "Comfortable across application, cloud, DevOps, and data — so design decisions hold up across the whole lifecycle of a system.",
+  },
+];
+---
+
+<section id="about" class="border-b border-ink-900 py-24">
+  <div class="container-wide grid gap-16 md:grid-cols-[1fr_1.5fr]">
+    <div>
+      <p class="eyebrow">About</p>
+      <h2 class="mt-4 text-3xl md:text-4xl">What I do</h2>
+    </div>
+
+    <div class="space-y-10">
+      <p class="max-w-reading text-lg leading-relaxed text-ink-200">
+        I've spent the last ten years delivering software across aerospace,
+        military, government, healthcare, and automotive domains — moving from
+        software engineer to technical architect. I lead teams, design systems,
+        and still write the critical code myself. I care about clarity,
+        ownership, and building things that survive contact with production.
+      </p>
+
+      <dl class="grid gap-8 sm:grid-cols-3">
+        {
+          strengths.map((s) => (
+            <div>
+              <dt class="font-serif text-lg text-ink-50">{s.title}</dt>
+              <dd class="mt-2 text-sm leading-relaxed text-ink-300">
+                {s.body}
+              </dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </div>
+</section>

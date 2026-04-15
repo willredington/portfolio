@@ -1,0 +1,68 @@
+---
+title: "Lifting a DevOps pipeline into a private, VPN-gated AWS footprint"
+outcome: "A private EKS cluster, Jenkins pipeline, and VPN-gated access — all defined in code and reproducible from scratch."
+summary: "Migrated a team's ad-hoc build and deploy infrastructure onto a fully private AWS footprint: a private EKS cluster, Jenkins on EC2, AWS Client VPN for access, hardened networking, and a CDK + CloudFormation + Ansible toolchain that can recreate the whole environment from source."
+stack:
+  - "AWS CDK"
+  - "CloudFormation"
+  - "Ansible"
+  - "EKS"
+  - "Jenkins"
+  - "AWS Client VPN"
+  - "ECR"
+  - "VPC Networking"
+  - "IAM"
+  - "Secrets Manager"
+  - "CloudWatch"
+order: 2
+role: "Technical Architect"
+year: "2023–2024"
+company: "Freya Systems"
+---
+
+## The problem
+
+The team had a working but brittle deployment story: infrastructure assembled over time, access patterns that depended on individual engineers knowing the right steps, and no clean way to rebuild the environment if something went wrong. The goal was a **fully private AWS footprint** — no public workload endpoints, no unmanaged access paths — that a new engineer could connect to through a single VPN and that the team could rebuild from code on demand.
+
+## Architecture
+
+<img src="/diagrams/aws-infrastructure-migration.svg" alt="AWS infrastructure migration architecture diagram" />
+
+The shape is familiar but the details are where the work lives: a VPC with no publicly reachable workloads, a Client VPN as the single ingress for engineers, a private EKS cluster for application workloads, Jenkins on EC2 for CI/CD, and an ECR image registry feeding the cluster. All of it described in CDK with TypeScript, orchestrated through CloudFormation, and bootstrapped with Ansible where host configuration was needed.
+
+## Key decisions
+
+### Private-by-default networking
+
+There are no public subnets for workloads. Engineers reach Jenkins, the EKS API, and the internal NLB only through the VPN — nothing about the application surface is reachable from the open internet. Egress flows through a NAT gateway for things that need to reach out (pulling images, OS updates). This was non-negotiable given the security posture the team needed to hold.
+
+### AWS Client VPN as the only ingress
+
+Instead of bastion hosts or IP allowlists, access is gated by a Client VPN endpoint with certificate-based trust and SSO-backed authorization. One endpoint, one place to revoke access, predictable audit trail. It also means the Jenkins UI, EKS API, and observability stack all live behind the same access boundary — there's no second auth story to maintain for tooling.
+
+### CDK + CloudFormation + Ansible, each doing what they're good at
+
+- **CDK (TypeScript)** describes the AWS resources — VPC, EKS, IAM roles, VPN config, security groups — as composable TypeScript stacks. CDK's type checking caught misconfigurations I'd never have seen in raw YAML.
+- **CloudFormation** is the execution layer. Drift detection on the stacks made it obvious when anything changed out of band.
+- **Ansible** handled the pieces CDK shouldn't — bootstrapping Jenkins EC2 hosts, installing agents, rolling credentials. Using Ansible for host-level work kept the CDK code focused on cloud resources, not shell.
+
+The split matters: I've seen teams try to do everything in one tool and regret it. The boundary is "resources vs. hosts," and each tool lives on its side.
+
+### Jenkins on EC2, not managed CI
+
+The team had existing Jenkins pipelines and institutional knowledge in them; rewriting into a managed CI would have been weeks of work with no meaningful payoff. Running Jenkins on EC2 in the CI subnet kept that investment while bringing it fully inside the private VPC.
+
+### Observability as a first-class stack
+
+CloudWatch for AWS-native signals, Fluent Bit to ship application logs, Prometheus + Grafana for cluster metrics. The observability stack was treated as its own CDK concern — its own stack, its own resource tree — so it couldn't become an afterthought that only ran on the "good" environments.
+
+## Stack
+
+**Compute & orchestration:** EKS (private endpoint, hardened node AMIs, mixed on-demand + spot), EC2 for Jenkins, internal NLB, ECR for images.
+**Networking & access:** VPC with private-only workload subnets, NAT gateways, AWS Client VPN with certificate auth, security-group least privilege.
+**IaC:** AWS CDK in TypeScript, CloudFormation, Ansible for host provisioning.
+**Operational tooling:** CloudWatch, Fluent Bit, Prometheus, Grafana, Secrets Manager, S3 for artifacts.
+
+## Impact
+
+By the end of the migration, rebuilding the environment from scratch was a CDK deploy plus a documented VPN enrollment — no tribal knowledge required. New engineers got access in minutes instead of days. Workloads were no longer reachable from the open internet, which changed what the team's security conversations were about. And because the entire footprint was in code, subsequent changes (new environments, new workloads) became additions rather than archaeological digs.

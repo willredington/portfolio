@@ -1,0 +1,123 @@
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    @apply bg-ink-950 text-ink-200;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans text-base leading-relaxed;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-serif font-medium tracking-tightish text-ink-50;
+  }
+
+  a {
+    @apply transition-colors duration-150;
+  }
+
+  ::selection {
+    @apply bg-accent/30 text-ink-50;
+  }
+
+  hr {
+    @apply border-ink-700;
+  }
+}
+
+@layer components {
+  .container-prose {
+    @apply mx-auto w-full max-w-prose px-6;
+  }
+
+  .container-wide {
+    @apply mx-auto w-full max-w-5xl px-6;
+  }
+
+  .eyebrow {
+    @apply font-sans text-xs font-medium uppercase tracking-[0.18em] text-ink-400;
+  }
+
+  .link-underline {
+    @apply border-b border-ink-600 pb-0.5 text-ink-100 hover:border-accent hover:text-accent;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20 hover:border-accent;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 rounded-md border border-ink-600 bg-ink-900 px-4 py-2 text-sm font-medium text-ink-200 transition hover:border-ink-500 hover:text-ink-50;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full border border-ink-600 bg-ink-800/60 px-3 py-1 text-xs font-medium text-ink-300;
+  }
+
+  /* Case study MDX prose styling */
+  .prose-editorial {
+    @apply text-ink-200;
+  }
+  .prose-editorial h2 {
+    @apply mt-14 mb-4 text-2xl text-ink-50;
+  }
+  .prose-editorial h3 {
+    @apply mt-10 mb-3 text-xl text-ink-50;
+  }
+  .prose-editorial p {
+    @apply my-5 leading-relaxed;
+  }
+  .prose-editorial ul {
+    @apply my-5 space-y-2 pl-5;
+    list-style-type: "— ";
+  }
+  .prose-editorial ol {
+    @apply my-5 space-y-2 pl-6 list-decimal;
+  }
+  .prose-editorial li::marker {
+    @apply text-ink-500;
+  }
+  .prose-editorial strong {
+    @apply text-ink-50 font-medium;
+  }
+  .prose-editorial code {
+    @apply rounded bg-ink-800 border border-ink-700 px-1.5 py-0.5 text-[0.9em] font-mono text-accent;
+  }
+  .prose-editorial pre {
+    @apply my-6 overflow-x-auto rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm;
+  }
+  .prose-editorial pre code {
+    @apply border-0 bg-transparent p-0 text-ink-200;
+  }
+  .prose-editorial a {
+    @apply border-b border-ink-600 pb-0.5 text-ink-100 hover:border-accent hover:text-accent;
+  }
+  .prose-editorial blockquote {
+    @apply my-6 border-l-2 border-accent/40 pl-5 italic text-ink-300;
+  }
+  .prose-editorial img,
+  .prose-editorial svg {
+    @apply my-8 mx-auto max-w-full rounded-lg border border-ink-700 bg-ink-900;
+  }
+  .prose-editorial hr {
+    @apply my-10 border-ink-700;
+  }
+}

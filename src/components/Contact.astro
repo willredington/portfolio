@@ -1,0 +1,56 @@
+---
+import { SITE } from "@/config";
+
+const links = [
+  { label: "Email", value: SITE.email, href: `mailto:${SITE.email}` },
+  {
+    label: "LinkedIn",
+    value: "in/will-redington-04814493",
+    href: SITE.linkedin,
+  },
+  {
+    label: "GitHub",
+    value: `github.com/${SITE.github}`,
+    href: `https://github.com/${SITE.github}`,
+  },
+];
+---
+
+<section id="contact" class="py-24">
+  <div class="container-wide">
+    <div class="grid gap-12 md:grid-cols-[1fr_1.5fr]">
+      <div>
+        <p class="eyebrow">Contact</p>
+        <h2 class="mt-4 text-3xl md:text-4xl">Get in touch</h2>
+      </div>
+
+      <div class="space-y-10">
+        <p class="max-w-reading text-lg leading-relaxed text-ink-200">
+          Happy to chat about hard systems problems, cloud architecture, or
+          roles where I can lead an engineering team through real complexity.
+        </p>
+
+        <dl class="space-y-3">
+          {
+            links.map((link) => (
+              <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-6">
+                <dt class="eyebrow w-24 sm:text-right">{link.label}</dt>
+                <dd>
+                  <a class="link-underline" href={link.href}>
+                    {link.value}
+                  </a>
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+
+        <div>
+          <a href="/resume.pdf" class="btn-primary" download>
+            Download Resume (PDF)
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
