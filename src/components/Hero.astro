@@ -1,27 +1,36 @@
 ---
-
+import { SITE } from "@/config";
 ---
 
 <section class="border-b border-ink-900 py-24 md:py-32">
   <div class="container-wide">
-    <p class="eyebrow mb-6">Senior Software Engineer · Technical Architect</p>
+    <p class="eyebrow mb-6">Technical Architect · AI Integration & Systems Design</p>
     <h1
       class="max-w-3xl font-serif text-4xl font-medium leading-[1.08] text-ink-50 md:text-6xl"
     >
-      Designing resilient systems
-      <span class="text-accent">from the wire up to the interface.</span>
+      Building AI-native systems,
+      <span class="text-accent">from infrastructure to interface.</span>
     </h1>
 
     <p class="mt-8 max-w-2xl text-lg leading-relaxed text-ink-300">
-      I'm Will Redington — a full-stack engineer with nearly a decade of
-      experience turning ambiguous problems into durable systems across
-      healthcare, aerospace, and automotive. I lead teams, architect cloud
-      infrastructure, and write the code that carries it to production.
+      I'm Will Redington — a Technical Architect with nearly a decade of
+      full-stack experience across aerospace, healthcare, and SaaS. I design and
+      ship cloud-native systems from infrastructure to frontend, with a growing
+      focus on practical AI integration: LLM-powered products, agentic
+      workflows, and semantic search pipelines.
     </p>
 
     <div class="mt-10 flex flex-wrap items-center gap-3">
       <a href="#case-studies" class="btn-primary">See Case Studies</a>
       <a href="/resume.pdf" class="btn-secondary" download>Download Resume</a>
+      <a
+        href={`https://github.com/${SITE.github}`}
+        class="btn-secondary"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        GitHub
+      </a>
     </div>
   </div>
 </section>

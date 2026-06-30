@@ -1,9 +1,10 @@
 ---
-title: "A personalized learning platform that grows a mind map from what you read"
-outcome: "An AI content-ingestion pipeline turns ad-hoc web reading into a structured knowledge base and an automatically generated mind map of everything you've learned."
-summary: "A full-stack AI platform where users capture content through a browser extension, a Step Functions pipeline extracts structured knowledge with LLMs, and every ingestion grows an auto-generated mind map — a living visual graph of topics and relationships that reflects the user's knowledge as it accumulates."
+title: "A personalized learning platform that turns what you read into a queryable knowledge base"
+outcome: "An AI ingestion pipeline turns ad-hoc web reading into a structured, searchable knowledge base — extracting knowledge with LLMs, auto-organizing it by topic through vector similarity, and answering questions with a retrieval-augmented chatbot grounded in everything you've saved."
+summary: "A full-stack AI platform where users capture content through a browser extension, a Step Functions pipeline extracts structured knowledge with LLMs, vector similarity auto-organizes it into topics, and a retrieval-augmented chatbot answers questions over your library — all backed by hybrid semantic search on Postgres + pgvector."
 stack:
   - "AWS CDK"
+  - "Terraform"
   - "Step Functions"
   - "API Gateway"
   - "WebSockets"
@@ -11,83 +12,146 @@ stack:
   - "Next.js"
   - "tRPC"
   - "Drizzle + PostgreSQL"
-  - "Neo4j"
+  - "pgvector"
   - "Redis"
   - "Vercel AI SDK"
-  - "Langfuse"
-  - "promptfoo"
-  - "Clerk"
+  - "OpenRouter"
+  - "Better Auth"
   - "Stripe"
 order: 1
 role: "Sole architect and full-stack engineer"
-year: "2025"
+year: "2025—2026"
 ---
 
 ## The problem
 
-People read constantly — articles, papers, docs — and almost none of it gets captured in a form they can navigate later. I wanted a system that turns unstructured reading into something you can actually see: a **mind map** of topics and relationships that grows automatically as you ingest content, so the shape of your own knowledge becomes visible and navigable over time.
+People read constantly — articles, papers, docs — and almost none of it gets
+captured in a form they can come back to. I wanted a system that turns
+unstructured reading into a **structured knowledge base you can actually
+query**: capture a page now, and later ask questions and get answers grounded in
+what _you_ have read.
 
 That meant three hard problems in one:
 
-1. An ingestion surface the user barely has to think about (a browser extension, not a form).
-2. An AI pipeline that reliably extracts, classifies, and organizes knowledge — with enough guardrails that the mind map stays coherent at scale.
-3. A data layer that keeps relational truth (content, sources, subscriptions) and graph truth (topic hierarchy, relationships) in sync so the map reflects the library.
+1. An ingestion surface the user barely has to think about (a browser extension,
+   not a form).
+2. An AI pipeline that reliably extracts, classifies, and organizes knowledge
+   from messy web content.
+3. A retrieval layer — semantic search plus a chatbot — that makes the whole
+   library queryable and keeps its answers grounded in the user's own content.
 
 ## Architecture
 
-<img src="/diagrams/knowledge-base.svg" alt="Knowledge Base architecture: ingestion pipeline feeding a mind map in Neo4j and relational data in PostgreSQL" />
+<img src="/diagrams/knowledge-base.svg" alt="Knowledge Base architecture: a browser extension and dashboard feed an AI ingestion pipeline on Step Functions that writes structured content and embeddings to Postgres + pgvector, with EventBridge fan-out and real-time progress over WebSockets." />
 
-The system is a Turborepo monorepo with four apps and seven packages. The interesting shape is the split between **write path** (Step Functions pipeline mutating both PostgreSQL and Neo4j, incrementally growing the mind map with each ingestion) and **read path** (tRPC Lambda reading cached + aggregated data for the dashboard's views of the knowledge base and mind map), with **EventBridge** connecting the two and a **WebSocket API** pushing real-time progress back to the dashboard while content is being processed.
+The system is a Turborepo monorepo — six apps and eight shared packages. The
+shape that matters is the split between the **write path** (a Step Functions
+pipeline that extracts knowledge with LLMs and writes content plus embeddings to
+Postgres) and the **read path** (a tRPC Lambda and a retrieval-augmented chatbot
+that serve the dashboard from cached and semantically-searched data), with
+**EventBridge** connecting the two and a **WebSocket API** pushing real-time
+progress back to the dashboard while content is processed.
 
 ## Key decisions
 
 ### Step Functions for the ingestion pipeline
 
-Content processing is a chain of AI workflows: extract metadata → evaluate quality → classify review category → extract knowledge → extract topics → infer topic parents → plan graph mutations → score relevancy. Each step can fail independently, each has different compute and cost profiles, and the happy path is long.
+Processing a captured link is a chain of AI workflows: convert HTML to markdown →
+evaluate quality → select context → extract metadata → extract the knowledge
+base → extract a summary → classify a review category. A `Choice` on whether the
+content is substantive short-circuits thin pages past the expensive LLM steps.
+Manually-entered content runs a separate, much shorter state machine.
 
 Step Functions was the right fit because:
 
 - Each AI call gets its own isolated retry / timeout / error branch.
 - Per-execution history is observable without extra tooling.
-- Steps can fan out where the work allows (topic inference across many knowledge fragments in parallel).
+- The `Choice` gate skips costly extraction for content that isn't worth it.
 
-Running this as a single long-running Lambda would have traded clarity for a deployment footprint I didn't need.
+Each step emits an EventBridge event on completion, so downstream work hangs off
+the pipeline without the pipeline knowing about it. Running this as one long
+Lambda would have traded that clarity for nothing I needed.
 
-### PostgreSQL for content, Neo4j for the mind map
+### One Postgres, not three datastores
 
-The core relational data — content, content-sources, contexts, topics, subscriptions — lives in **PostgreSQL** (Drizzle ORM, with `tsvector` for full-text search). The **mind map** — topic parent relationships, topic-to-fragment links, and the graph mutations planned by the ingestion pipeline — lives in **Neo4j**.
+The system originally ran three stores: Neo4j for a topic graph, DynamoDB for
+relational data, and Chroma for vectors. I collapsed all three into a single
+**Postgres** (Drizzle ORM, Neon serverless driver):
 
-The important tradeoff: I didn't try to represent graph traversal in Postgres. Postgres does recursive CTEs, but nothing beats a graph database for the traversal queries a navigable mind map needs — "what hangs under this topic," "how is this concept related to that one," "how has the map changed since last ingestion." The two stores stay consistent through the pipeline's mutation-planning step, which produces an explicit plan that both sides apply.
+- Relational tables for content, sources, topics, contexts, and subscriptions.
+- `vector(1536)` **pgvector** columns on content sources and topics for
+  embeddings.
+- A generated `tsvector` column with a GIN index for full-text search.
 
-### AI evaluation with promptfoo, not unit tests
+The notable tradeoff: I dropped the hierarchical topic graph in favor of **flat
+topics**. The graph's traversal queries were elegant but weren't earning a
+second database in an MVP — and folding everything into one store deleted an
+entire class of cross-store consistency bugs (the old
+DynamoDB-streams-into-graph-rebuild sync). One database, one transaction
+boundary, one place for the truth.
 
-The AI workflow packages don't have unit tests — they have **promptfoo evaluations**. Each workflow (`extract-metadata`, `evaluate-content-quality`, `extract-knowledge-base`, `infer-topic-parent`, `plan-graph-mutations`, and others) has its own config and dataset. Every change to a prompt or model runs against the eval set before merging.
+### Hybrid semantic search and reactive topic organization
 
-This was the right call: LLM behavior shifts under model upgrades and prompt edits in ways that unit tests can't catch. Evals give me a regression bed that understands _outcomes_, not strings.
+Search is the core of the product, so it lives in the domain layer, not bolted
+onto persistence. Content search fuses **dense cosine similarity** (pgvector
+embeddings) with **Postgres full-text** (`tsvector` + `ts_rank`) via Reciprocal
+Rank Fusion; topic search is dense-only. Embeddings come from
+`openai/text-embedding-3-small` (1536 dims) through the Vercel AI SDK over
+OpenRouter.
 
-Langfuse traces every workflow run with OTel, so when an eval regresses I can pull the exact trace and compare side-by-side.
+That same vector search is how topics organize themselves. Topic assignment is
+deliberately **not** a pipeline step — when knowledge extraction finishes, the
+pipeline emits an event and a separate handler reacts: it pulls the new
+content's embedding, queries pgvector for the 20 most similar existing topics,
+and hands those candidates to an `attach-or-create-topics` LLM workflow that
+decides what to reuse and what to create. Decoupling it this way lets the event
+dispatcher run multiple handlers off one event without growing the state
+machine.
 
-### EventBridge over direct invocation
+### A transactional outbox for event durability
 
-Nine domain events (`content-metadata-updated`, `content-quality-evaluated`, `content-processing-status-changed`, `knowledge-graph-built`, and others) flow through **EventBridge**. The pipeline emits them; a WebSocket handler and several side-effect Lambdas subscribe.
+Domain-event durability is owned by a **transactional outbox** in Postgres
+(replacing the DynamoDB Streams approach from before the migration). A tRPC
+mutation that needs to emit events wraps its write in `withOutbox(...)`: the
+domain change and the event rows commit in the **same transaction**, so an event
+can never escape without its write — or vice versa. A scheduled `drain-outbox`
+Lambda forwards committed rows to EventBridge, which fans out to consumers like
+the WebSocket progress push and the topic-attach handler.
 
-Using EventBridge instead of direct Lambda invocation kept the pipeline code focused on the happy path — new consumers (the WebSocket push, analytics, cache invalidation) added later without touching the pipeline.
+### Observability as code
 
-### Monitoring as CDK Aspects
-
-CloudWatch alarms across the stacks are wired by **CDK Aspects** (`error-alarm-aspect`, `lambda-logged-error-alarm-aspect`, `sqs-dlq-alarm-aspect`, `langfuse-aspect`). Nothing in the app code registers alarms manually — the aspects walk the tree at synth time and attach them. New Lambdas or SQS queues inherit the right monitoring automatically.
-
-This was one of the highest-leverage decisions in the codebase: the monitoring story got better over time without anyone thinking about it.
+There's no managed AI-tracing vendor. AI workflows are instrumented with the AI
+SDK's `experimental_telemetry` plus structured logging, and a **correlation ID**
+carried through `AsyncLocalStorage` lands in every log line across Lambda
+handlers, tRPC, event handlers, and the outbox. Logs forward to **Grafana Cloud
+Loki** via a `loki-forwarder` Lambda; a CDK Aspect auto-attaches a subscription
+filter to every Lambda log group at synth time, so new functions inherit log
+shipping for free. Grafana dashboards and alerts themselves are managed as code
+in **Terraform**.
 
 ## Stack
 
-**Infrastructure:** AWS CDK, Lambda, Step Functions, API Gateway (HTTP + WebSocket), EventBridge, SQS, CloudWatch, Stripe and Clerk webhooks.
-**Data:** PostgreSQL (Drizzle ORM, tsvector), Neo4j, Redis (ioredis).
-**Backend:** TypeScript, tRPC, Zod, event-driven handlers.
-**AI:** Vercel AI SDK, Langfuse OTel tracing, promptfoo evals, `FAST_AI_MODEL` / `SMART_AI_MODEL` split for cost control.
-**Frontend:** Next.js dashboard, Next.js marketing site, WXT browser extension, shared Radix + Tailwind component library.
-**Auth & payments:** Clerk, Stripe.
+**Infrastructure:** AWS CDK (Lambda, Step Functions, API Gateway HTTP +
+WebSocket, EventBridge, SQS), Terraform for Grafana Cloud dashboards + alerts,
+Stripe webhooks.
+**Data:** PostgreSQL (Drizzle ORM, Neon serverless) with pgvector embeddings and
+`tsvector` full-text, Redis (ioredis) cache.
+**Backend:** TypeScript, tRPC, Zod, event-driven handlers, transactional outbox.
+**AI:** Vercel AI SDK routed through OpenRouter, `openai/text-embedding-3-small`
+embeddings, hybrid dense + full-text retrieval fused via RRF,
+`experimental_telemetry` tracing, a FAST / SMART model split for cost control.
+**Frontend:** Next.js dashboard with a retrieval-augmented chatbot, Next.js
+marketing site, WXT browser extension, shared Radix + Tailwind component
+library.
+**Auth & payments:** Better Auth (EdDSA JWT verified against a static JWKS),
+Stripe.
 
 ## Impact
 
-Beyond the product itself, this project was the proving ground for a set of patterns I now carry into every architecture I lead: Step-Functions-as-workflow over ad-hoc chaining, evals-not-unit-tests for AI workflows, EventBridge-first for domain events, and aspect-based monitoring as a default. It's the most complete end-to-end system I've shipped by myself — infrastructure, backend, AI, frontend, and extension.
+Beyond the product, this is the proving ground for the patterns I now bring to
+every architecture I lead: Step-Functions-as-workflow over ad-hoc chaining, a
+single Postgres over polyglot persistence when the second datastore isn't
+earning its keep, hybrid vector + full-text retrieval for AI features, a
+transactional outbox for events that can't be lost, and observability wired as
+code. It's the most complete end-to-end system I've shipped solo —
+infrastructure, backend, AI, frontend, and browser extension.

@@ -4,6 +4,11 @@ import { SITE } from "@/config";
 const links = [
   { label: "Email", value: SITE.email, href: `mailto:${SITE.email}` },
   {
+    label: "Phone",
+    value: SITE.phone,
+    href: `tel:+1${SITE.phone.replace(/\D/g, "")}`,
+  },
+  {
     label: "LinkedIn",
     value: "in/will-redington-04814493",
     href: SITE.linkedin,
@@ -26,8 +31,9 @@ const links = [
 
       <div class="space-y-10">
         <p class="max-w-reading text-lg leading-relaxed text-ink-200">
-          Happy to chat about hard systems problems, cloud architecture, or
-          roles where I can lead an engineering team through real complexity.
+          Happy to talk about AI integration, cloud architecture, or remote
+          architect roles where I can pair technical depth with real business
+          impact.
         </p>
 
         <dl class="space-y-3">

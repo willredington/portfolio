@@ -1,4 +1,6 @@
 ---
+import { SITE } from "@/config";
+
 interface NavLink {
   label: string;
   href: string;
@@ -6,6 +8,7 @@ interface NavLink {
 
 const links: NavLink[] = [
   { label: "About", href: "/#about" },
+  { label: "Skills", href: "/#skills" },
   { label: "Experience", href: "/#experience" },
   { label: "Case Studies", href: "/#case-studies" },
   { label: "Contact", href: "/#contact" },
@@ -15,9 +18,7 @@ const links: NavLink[] = [
 <header
   class="sticky top-0 z-40 border-b border-ink-900 bg-ink-950/80 backdrop-blur supports-[backdrop-filter]:bg-ink-950/60"
 >
-  <div
-    class="container-wide flex h-16 items-center justify-between"
-  >
+  <div class="container-wide flex h-16 items-center justify-between">
     <a
       href="/"
       class="font-serif text-lg font-medium text-ink-50 hover:text-accent"
@@ -28,18 +29,23 @@ const links: NavLink[] = [
     <nav class="hidden items-center gap-8 md:flex" aria-label="Primary">
       {
         links.map(({ label, href }) => (
-          <a
-            href={href}
-            class="text-sm text-ink-300 hover:text-ink-50"
-          >
+          <a href={href} class="text-sm text-ink-300 hover:text-ink-50">
             {label}
           </a>
         ))
       }
     </nav>
 
-    <a href="/resume.pdf" class="btn-primary" download>
-      Download Resume
-    </a>
+    <div class="flex items-center gap-4">
+      <a
+        href={`https://github.com/${SITE.github}`}
+        class="hidden text-sm text-ink-300 hover:text-ink-50 sm:inline"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        GitHub
+      </a>
+      <a href="/resume.pdf" class="btn-primary" download>Download Resume</a>
+    </div>
   </div>
 </header>
