@@ -1,0 +1,13 @@
+replicaCount: 1
+
+image:
+  repository: portfolio
+  pullPolicy: IfNotPresent
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
