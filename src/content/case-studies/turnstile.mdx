@@ -1,0 +1,253 @@
+---
+title: "A review companion that keeps you reading what a coding agent changes"
+outcome: "Every file a coding agent touches, tracked against a baseline in git and reviewed as the session runs — without ever making the agent wait on you."
+summary: "Turnstile is the client the agent talks to. It runs the agent in your own checkout, derives the changed-file list by diffing against a baseline written into git, and reviews each file when a turn ends. You read whole files, note the lines that matter, and send those notes when you're ready."
+stack:
+  - "TypeScript"
+  - "Bun"
+  - "Claude Agent SDK"
+  - "React 19"
+  - "CodeMirror 6"
+  - "Tauri 2"
+  - "Rust"
+  - "git plumbing"
+  - "Vercel AI SDK"
+  - "OpenRouter"
+  - "Zod"
+  - "OpenTelemetry"
+  - "Grafana / Tempo / Prometheus"
+  - "Biome"
+order: 1
+role: "Sole designer and engineer"
+year: "2026"
+---
+
+## The problem
+
+Coding agents produce more change than anyone actually reads. The failure mode
+isn't the agent being wrong — it's **human cognitive drift**: the slide into
+rubber-stamping a diff without processing it, one plausible-looking turn at a
+time. By the time it matters you have signed off on code you could not describe.
+
+The obvious fix is the trap. Putting an AI summary between you and the diff is
+the *same mechanism* that causes the drift — it gives you something easier to
+read than the code, so you read that instead. A tool that summarizes changes for
+you is a tool that helps you not read them.
+
+So Turnstile is built on two constraints it isn't allowed to violate:
+
+- **The model flags problems, not a verdict.** Each changed file gets a list of
+  findings — usually empty — and each finding is a specific problem the change
+  introduces: where it is, how bad it is, a sentence on why. Never a description
+  of what the change does.
+- **You read the file, not a digest of it.** A changed file opens whole, top to
+  bottom, with its changes marked where they fall. Findings sit beside the code;
+  they never stand in for it.
+
+The honest consequence, and the line I kept coming back to while building it: if
+you find yourself skimming the findings instead of the diff, that is the signal
+the tool exists to catch — not friction to design away.
+
+## Architecture
+
+<img src="/diagrams/turnstile.svg" alt="Turnstile architecture: the desktop shell and React UI drive a session pipeline that runs Claude Code in your checkout through the Claude Agent SDK, derives the changed-file list by diffing the working tree against a baseline ref in git, reviews changed files with a read-only reviewer, and sends line-anchored notes back to the agent without blocking it." />
+
+Turnstile isn't a wrapper around a coding agent — it *is* the client. It drives
+Claude Code through the Claude Agent SDK, with no proxy process in between, and
+runs it directly in the checkout you launched from.
+
+The codebase is **ports and adapters in a strict downward stack**: `core/` holds
+domain types, chunking, the risk bar, notes and around two dozen port interfaces
+with zero I/O; `app/` is the pipeline — session, board, review — written against
+those ports only; `adapters/` implements them one concern at a time
+(`agent-sdk`, `git`, `model`, `web`, `fs`, `otel`), never importing a sibling;
+`cli/` is the composition root that builds the adapters and wires them together.
+
+The part I care about is that the boundaries are **enforced, not documented**.
+`tests/architecture.test.ts` parses every relative import under `src/`, walks the
+real graph, and fails the build on an illegal edge — naming it. Seven invariants,
+including that `core` may not contain a filesystem call, a spawn, or a `fetch` at
+all. Layering that lives only in a README rots on the first deadline; this makes
+it a property of the codebase instead of an intention.
+
+The UI is a real React app bundled by Bun itself — no Vite, no separate build
+step — and embedded into the binary by `bun build --compile`. Tauri 2 wraps that
+binary as a desktop app, carrying it as a sidecar.
+
+## Key decisions
+
+### A baseline in git, not state in the tool
+
+When a session sends its first message, the whole checkout — committed,
+uncommitted and untracked alike — is written as a tree and recorded at
+`refs/turnstile/baselines/<session>`. That happens through a **scratch index**
+(`GIT_INDEX_FILE` pointed at a throwaway file, then `read-tree`, `add -A`,
+`write-tree`), so recording it never touches your index, HEAD, stash, reflog or
+history.
+
+The changed-file list is then just "every file that differs from the baseline,"
+which buys three properties for free:
+
+- **committed or not** — both sides are compared as trees, so the agent
+  committing its own work can't hide it;
+- **whoever made it** — the agent's write tool, a shell command, or you editing
+  a file by hand;
+- **for the whole session** — the list is cumulative, so resuming tomorrow shows
+  everything that has changed since it began, notes still attached.
+
+Because the baseline lives in git rather than in Turnstile's own store, there is
+nothing to lose or go stale across a restart. Turnstile creates no branches and
+never commits to yours; what happens to the agent's work stays your call, with
+ordinary git.
+
+### Non-blocking by construction
+
+Nothing is reverted and nothing is waited on. The list follows every edit as it
+lands, the review runs when a turn ends, and your notes reach the agent when
+**you** send them. A message typed mid-turn doesn't interrupt — interrupting is
+how you get half-finished work — it queues and goes as the next turn.
+
+This is the design's whole shape, and it replaced the opposite one. More on that
+below.
+
+### The reviewer is read-only, and its answer is typed
+
+When a turn ends having changed something, one reviewer run reads every changed
+file that has no current review. It runs read-only in your checkout and can read,
+search and run read-only shell commands across the rest of the repository,
+because whether a change is right usually turns on something outside it: a caller
+it broke, a test that should exist, the sibling it should have followed.
+
+Its output is structured, never prose. Each finding is **where** (any file — a
+caller the change broke is a finding in the caller, tied back to the change that
+broke it), **how badly** (`low`, `medium`, `high`), and **what**, in a sentence or
+two. An empty list is the expected answer for most changes.
+
+Two details that took iterating to get right:
+
+- **Reviews are keyed to file content.** A review holds only while the file is
+  exactly as it was reviewed. Edit it any other way — by hand, a checkout,
+  another session — and it reads *not reviewed* again rather than showing findings
+  about lines that no longer exist.
+- **It waits for the turn to end.** Reviewing work the agent is still in the
+  middle of means reviewing something about to change, and each review is a whole
+  agent run. A turn that changed nothing isn't reviewed at all.
+
+A risk bar keeps the reviewer off what it can't help with — prose, formatting-only
+edits, comment-only changes, mechanical renames, generated and vendored paths —
+with one deliberate exception: indentation-significant languages are checked
+anyway, because reindenting Python or YAML is a behavior change made entirely of
+whitespace.
+
+### Questions go to a different, cheaper model
+
+Notes ask for a change. The other half of reading someone else's work is wanting
+to know what something *does* — and the moment you want to ask is usually
+mid-turn, exactly when the agent is in no position to answer. So selecting code
+and asking a question routes to a separate small model, with read-only tools and
+nothing to write with. Answers appear as cards set into the file under the lines
+they're about.
+
+It deliberately doesn't spend the agent's context window on a question that isn't
+the work, and it keeps nothing: if an answer is worth acting on, you write it as
+a note, which is the thing that persists and reaches the agent.
+
+### The permission default is inverted on purpose
+
+The agent's native edit and write tools are disallowed outright — a single scoped
+tool is the only path to a file's contents, and only inside the repository.
+Everything else auto-approves, which looks backwards until you say it out loud:
+prompting for every `git status` would train you to click through prompts, which
+is the exact drift the tool exists to fight. `sudo` is denied unconditionally,
+and regex deny-patterns cover anything else you want stopped.
+
+Plan mode is the one place that bias flips — anything beyond reading stops for
+you, because plan mode has no review behind it to catch what slipped past.
+
+### Telemetry that joins both sides of the session
+
+Turnstile and the agent both export OpenTelemetry, and they **meet in the backend
+rather than in Turnstile** — correlated on a session ID rather than nested,
+because the SDK holds one long-lived connection per session and nesting would
+hang every turn of a multi-hour session off a single span. A provisioned Grafana
+stack ships with it, so one dashboard shows the agent's cost and tokens next to
+review outcomes, finding severities, and editor keystroke latency measured in the
+browser where the keystroke actually lands.
+
+Nothing you write or say is exported — durations, counts, paths, model and tool
+names, not prompts or file contents.
+
+## Rebuilding it twice
+
+The most useful thing I can say about this project is that its history is mostly
+a record of deleting its own designs.
+
+**It started as a blocking gate.** After every turn the agent waited until you
+approved or sent back each change, with a review ledger, per-change verdicts and
+board states to track it all. It worked, and it was wrong: holding the agent
+hostage to your reading speed makes the reading feel like a toll, and a toll is
+something you learn to pay quickly. The whole mechanism came out — gate, ledger,
+verdicts and all — and became the non-blocking design above.
+
+**Then the reviewer itself was rebuilt.** The first version judged each changed
+file against rules I maintained outside the checkout, one file per rule. Two
+things were wrong with it: coding agents already carry most of what those rules
+encode, in `CLAUDE.md` and skills, so the rules were duplicated effort — and a
+file no rule happened to govern was never reviewed at all. Holding the change to
+the repository's *own* stated conventions removes both problems and the
+maintenance burden with them.
+
+The counterpart is a design I wrote down and then declined to build: reviewing
+each file in its own subagent and worktree. The decision record works a concrete
+failure case (feedback written while reading one file that actually targets its
+sibling), identifies the three subsystems that design would need — detection,
+liveness, cascade — and concludes that building them means reconstructing, in
+orchestration code, what one shared agent conversation already gives you for
+free. It then finds that the real grievance underneath the proposal was latency,
+checks the existing code, discovers the concern already satisfied, and ends with
+one line: *No code changed as a result of this.*
+
+Writing down the thing you chose not to build is the cheapest engineering
+artifact there is, and the one I reach for most.
+
+## Stack
+
+**Runtime and build:** Bun as runner, bundler and test runner, compiling to a
+single binary with the React UI embedded; TypeScript throughout; Rust for the
+Tauri 2 desktop shell.
+**Agent:** Claude Code driven directly through the Claude Agent SDK, with a
+second read-only run as the reviewer.
+**Domain:** ports and adapters over ~two dozen interfaces, with the import graph
+enforced by a test; Zod for config and tool schemas.
+**UI:** React 19 with CodeMirror 6 — whole-file reading with change decorations,
+gutter drag for notes, inline finding and answer cards, a risk-sorted rail and a
+project tree.
+**Git:** plumbing only — scratch-index tree writes, baseline refs, tree-to-tree
+deltas, parsed patches rendered rather than `git diff` output dumped.
+**Ask path:** Vercel AI SDK over OpenRouter, read-only, on a small model.
+**Observability:** OpenTelemetry traces and metrics over OTLP, with a compose'd
+Grafana / Tempo / Prometheus / Loki stack and a provisioned dashboard.
+**Tooling:** Biome for lint and format, Knip for dead code, `bun test`.
+
+## Impact
+
+Turnstile is the project where I stopped treating an AI coding tool as a thing
+that produces code and started treating it as a thing that produces *reading
+work* — and designed for the human side of that exchange. The patterns I took
+from it show up in everything I build with agents now: put the durable state in
+the system that already owns it (git) rather than in your own store, keep the
+model's output narrow and typed instead of letting it write prose you'll skim,
+invert a convenience default when the convenience is what's harming you, and
+enforce architecture with a test rather than a paragraph.
+
+It's about 17,000 lines of TypeScript against roughly 14,000 lines of tests —
+around 950 cases mirroring the source tree — and the entire suite runs with **no
+network and no API key**, because every model call sits behind a port and the
+reviewer is tested against a mock model. A fake-session simulator boots the real
+server against a hand-built session, so the interface can be worked on with no
+agent, no repository and no model call at all; every screenshot in the project's
+README was taken from it.
+
+Source is on GitHub at
+[github.com/willredington/turnstile](https://github.com/willredington/turnstile) —
+built from source, macOS for now.
