@@ -16,6 +16,7 @@ const caseStudies = defineCollection({
     role: z.string().optional(),
     year: z.string().optional(),
     company: z.string().optional(),
+    repo: z.url().optional(),
   }),
 });
 

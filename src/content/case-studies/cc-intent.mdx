@@ -1,0 +1,172 @@
+---
+title: "Measuring whether a coding agent did what you asked, not just what it cost"
+outcome: "Every task you gave Claude Code, followed from the first ask to how it ended — rounds of work, corrections, effort, and outcome — reconstructed from the session transcripts it already writes."
+summary: "cc-intent reads Claude Code's own transcripts for a repository, works out each task you asked for, and tracks it through the session. A small typed model answers narrow questions about each message; plain code turns those answers into task state; a local web report shows where the rework went, and an on-demand multi-agent analysis explains the longest tasks."
+stack:
+  - "Python"
+  - "TypeSafe (System One)"
+  - "Claude Agent SDK"
+  - "FastAPI"
+  - "React 19"
+  - "TanStack Table / Query"
+  - "Vite"
+  - "OpenRouter"
+  - "SQLite"
+  - "uv"
+  - "Docker"
+order: 2
+role: "Sole designer and engineer"
+year: "2026"
+repo: "https://github.com/willredington/cc-intent"
+---
+
+## The problem
+
+Every usage dashboard for a coding agent answers the same question: what did it
+cost? Tokens, dollars, tool calls, minutes. None of them answer the question I
+actually cared about after a few hundred sessions: **did it do what I asked?**
+How often did a request land the first time, how often did I have to say "no,
+still broken," and where did the effort go when it didn't?
+
+The raw material already exists. Claude Code writes a JSONL transcript of every
+session. But a transcript is a stream of messages and tool calls, not a list of
+tasks. One message can ask for three things; the next can be "yes", a correction
+to something from twenty minutes ago, or approval of a plan that carries a
+hundred edits. Turning that stream into *tasks with outcomes* is the whole
+project.
+
+<figure>
+  <img src="/case-studies/cc-intent/report.jpg" alt="The cc-intent report run against Turnstile's own history: 368 tasks across 110 sessions, 88% done first try, 31% of tool calls spent on tasks that needed correction, an outcome breakdown, and a sortable task table." />
+  <figcaption>The report, run against 110 sessions of building Turnstile.</figcaption>
+</figure>
+
+## Architecture
+
+The pipeline runs in stages. Each stage is plain code except for one narrow
+judgment step:
+
+1. **Parse.** Transcripts become typed events, grouped by repository, with
+   worktrees folded back into the repo they belong to.
+2. **Split into steps.** A session becomes an ordered sequence of *your* inputs,
+   each followed by the stretch of work it set off. Feedback typed when you
+   decline a tool call counts as an input, and so does approving a plan.
+3. **Judge.** For each input, one call to TypeSafe's System One model answers a
+   batch of structured questions about the session's task ledger: which tasks
+   the previous work advanced, how this message relates to each open task
+   (continuation, refinement, correction, accepted, cancelled), and which of its
+   clauses ask for something new.
+4. **Track.** Plain code turns those answers into task state: opening,
+   reopening, completing, attributing work, and counting rework.
+5. **Summarize.** Each task gets a one-line summary from a small model via
+   OpenRouter, written from your own words. The report falls back to those words
+   if the summary can't be trusted.
+6. **Report.** A local FastAPI server serves a React UI whose numbers all come
+   from one `stats.py`.
+
+Everything is cached in SQLite, keyed by versioned question sets, so a re-run
+only pays for new sessions.
+
+## Key decisions
+
+### Policy lives in code, not in prompts
+
+The model is never asked "what are the tasks in this session?" It is asked
+narrow, typed questions with confidence scores, and **every rule about what
+those answers mean is in `tracker.py`**: thresholds, status transitions, how work
+is split between tasks, when a task counts as done. The judge module is kept to
+asking and parsing.
+
+That split is what makes the tool debuggable. When a task came out wrong, the
+question was always "did the model answer the narrow question wrong, or did my
+rule do the wrong thing with a right answer?" and both halves are testable
+separately. The tracker is tested with a scripted judge and a conversation
+builder, with no model involved.
+
+### Low-confidence answers are dropped, never flagged
+
+A choice under 0.5 confidence, or a yes/no under 0.65, is treated as *no
+answer*. It isn't shown with a warning and it isn't a guess. The threshold
+wasn't picked by feel: it came from sweeping an eval set of labeled messages
+from my own sessions, which the judge now agrees with on 32 of 34 new-task
+counts, 23 of 28 focus choices, and 23 of 27 relations.
+
+### Rules that were bug fixes, not preferences
+
+Several tracker rules exist because a real session broke a simpler version, and
+each one has a regression test:
+
+- **An approved plan opens its own task.** Plan approval leaves no user prompt,
+  only a tool result. Missing it once let an entire implementation plan land on
+  whatever complaint came before it.
+- **"Correction" means the same problem persists.** A newly noticed problem in
+  the same area is a new task, not rework on the old one.
+- **Accepted is final.** After "commit this", later bugs open new tasks instead
+  of reopening accepted ones.
+- **Waiting isn't work.** A question the agent asked can sit unanswered
+  overnight; counting wall-clock span once overstated one task by nine hours.
+
+<figure>
+  <img src="/case-studies/cc-intent/task.jpg" alt="A task's timeline in cc-intent: the original ask, each correction and refinement, and the round of work after each one with tools, files, and time." />
+  <figcaption>One task's timeline: each message classified, each round of work measured.</figcaption>
+</figure>
+
+### Assume the transcript format will change
+
+The format is undocumented and shifts between Claude Code versions. The parser
+treats that as a design input: unknown record types and malformed lines are
+counted and skipped, never raised. Transcripts turned out to be *trees*, not
+logs. Rewinds leave dead branches, and a compaction boundary can point
+*forward* in the file. Each quirk is written down in the README with a parser
+test beside it.
+
+### Deep analysis: agents that only see evidence
+
+For the longest tasks, an on-demand deep analysis explains where the time went.
+Plain code first renders each round of work as compact, timestamped evidence
+and groups it into phases. Then one orchestrator agent, via the Claude Agent
+SDK, fans out a `phase-analyst` subagent per phase in parallel and synthesizes a
+per-task analysis. A final agent pulls recurring patterns across tasks into
+**lessons learned**: one action per pattern, a few short rules, and how many
+tasks it showed up in.
+
+The agents are deliberately boxed in. They see only that evidence through
+in-process tools, with no settings, `CLAUDE.md`, plugins, hooks, or file or shell
+access. They return results only through typed `submit_*` tools that are
+validated against a schema and against the task's real round numbers. Timing
+comes from the transcript, not the model, and a missing submission shows as
+missing rather than filled in.
+
+<figure>
+  <img src="/case-studies/cc-intent/lessons.jpg" alt="Lessons learned across analyzed tasks: one row per recurring pattern with an action to take next time, short rules, and the number of tasks it appeared in." />
+  <figcaption>Lessons learned, compiled across the analyzed tasks.</figcaption>
+</figure>
+
+## Stack
+
+**Core:** Python 3.12 with uv; a Typer CLI; typed parsing of the transcript
+format.
+**Judgment:** TypeSafe System One for per-message structured judgments with
+confidence; an eval harness against locally labeled messages.
+**Analysis:** Claude Agent SDK orchestrator plus parallel subagents, isolated to
+in-process tools; OpenRouter for one-line summaries.
+**Report:** FastAPI with pydantic response models, and a React 19 + Vite UI
+using TanStack Table v9 and TanStack Query. The UI's API types are generated from
+the server models, and filters live in the URL.
+**Ops:** SQLite cache with versioned keys; a Docker image that mounts
+transcripts read-only.
+
+## Impact
+
+Pointed at Turnstile's own history, cc-intent turned 110 sessions into 368
+tasks and a number I hadn't been able to see before: **88% of completed tasks
+landed without a correction, yet the tasks that needed one soaked up 31% of all
+tool calls.** That gap is where the time goes, and the deep analysis names why.
+
+The broader lesson I took from it is about where a model belongs in a pipeline.
+Asking a small model narrow, typed questions and keeping every decision in
+tested code produced something I could debug, measure against an eval, and
+trust. The same pattern runs through the deep analysis: agents write into a
+schema, code checks their work, and code owns the clock.
+
+It's about 3,700 lines of Python and 1,700 of TypeScript, with a unit suite that
+never touches the network.

@@ -14,9 +14,10 @@ const studies = (await getCollection("caseStudies")).sort(
         <p class="eyebrow">Case Studies</p>
         <h2 class="mt-4 text-3xl md:text-4xl">Selected work</h2>
         <p class="mt-4 max-w-sm text-sm leading-relaxed text-ink-400">
-          Four deeper looks at systems I designed and shipped — a review
-          companion for coding agents, an AI content-ingestion platform, a
-          private cloud migration, and a serverless healthcare product.
+          Five deeper looks at systems I designed and shipped — a review
+          companion for coding agents, a tool that measures whether an agent
+          did what you asked, an AI content-ingestion platform, a private
+          cloud migration, and a serverless healthcare product.
         </p>
       </div>
 
@@ -31,6 +32,7 @@ const studies = (await getCollection("caseStudies")).sort(
               stack={s.data.stack}
               company={s.data.company}
               year={s.data.year}
+              repo={s.data.repo}
               index={i + 1}
             />
           ))

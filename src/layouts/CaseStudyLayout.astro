@@ -11,11 +11,19 @@ interface Props {
   company?: string;
   role?: string;
   year?: string;
+  repo?: string;
 }
 
-const { title, outcome, summary, stack, company, role, year } = Astro.props;
+const { title, outcome, summary, stack, company, role, year, repo } =
+  Astro.props;
 
-const meta = [role, company, year].filter(Boolean).join(" · ");
+const facts = [
+  { label: "Role", value: role },
+  { label: "Company", value: company },
+  { label: "Year", value: year },
+].filter((f) => f.value);
+
+const repoPath = repo?.replace(/^https?:\/\/(www\.)?/, "");
 ---
 
 <BaseLayout title={title} description={summary}>
@@ -29,20 +37,73 @@ const meta = [role, company, year].filter(Boolean).join(" · ");
         ← All case studies
       </a>
 
-      <header class="mt-10 space-y-6 border-b border-ink-800 pb-10">
-        <p class="eyebrow">{meta}</p>
+      <header class="mt-10 border-b border-ink-800 pb-12">
+        <p class="eyebrow">Case study</p>
         <h1
-          class="font-serif text-4xl font-medium leading-[1.1] text-ink-50 md:text-5xl"
+          class="mt-4 font-serif text-4xl font-medium leading-[1.1] text-ink-50 md:text-5xl"
         >
           {title}
         </h1>
-        <p class="text-xl leading-relaxed text-ink-200">
-          <span class="text-accent">Outcome:</span>
-          {outcome}
-        </p>
-        <p class="text-ink-300">{summary}</p>
-        <div class="flex flex-wrap gap-2 pt-2">
-          {stack.map((s) => <span class="pill">{s}</span>)}
+
+        {
+          repo && (
+            <a
+              href={repo}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group mt-8 flex items-center gap-4 rounded-lg border border-accent/40 bg-accent/10 px-5 py-4 transition hover:border-accent hover:bg-accent/15"
+            >
+              <svg
+                class="h-6 w-6 shrink-0 text-accent"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z" />
+              </svg>
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm font-medium text-ink-50">
+                  Source code on GitHub
+                </span>
+                <span class="block truncate font-mono text-xs text-ink-300 group-hover:text-accent">
+                  {repoPath}
+                </span>
+              </span>
+              <span
+                class="shrink-0 text-accent transition group-hover:translate-x-1"
+                aria-hidden="true"
+              >
+                ↗
+              </span>
+            </a>
+          )
+        }
+
+        <div class="mt-8 border-l-2 border-accent pl-5">
+          <p class="eyebrow text-accent">Outcome</p>
+          <p class="mt-2 text-xl leading-relaxed text-ink-100">{outcome}</p>
+        </div>
+
+        <p class="mt-8 leading-relaxed text-ink-300">{summary}</p>
+
+        {
+          facts.length > 0 && (
+            <dl class="mt-10 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-ink-800 pt-8 sm:grid-cols-3">
+              {facts.map((f) => (
+                <div>
+                  <dt class="eyebrow">{f.label}</dt>
+                  <dd class="mt-1.5 text-sm text-ink-100">{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )
+        }
+
+        <div class="mt-8">
+          <p class="eyebrow">Stack</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {stack.map((s) => <span class="pill">{s}</span>)}
+          </div>
         </div>
       </header>
 
